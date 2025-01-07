@@ -1,0 +1,24 @@
+{
+  "name": "tron-contract-helper",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "types",
+  "scripts": {
+    "compile":"npx tsc src/index.ts",
+    "test": "npx ts-node ./test/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@tronweb3/tronwallet-adapters": "^1.2.6",
+    "ethers": "^6.13.4",
+    "tronweb": "^6.0.0",
+    "wait": "^0.4.2"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}
