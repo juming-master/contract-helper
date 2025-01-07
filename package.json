@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "types": "types",
   "scripts": {
-    "compile":"npx tsc src/index.ts",
+    "compile":"npx tsc",
     "test": "npx ts-node ./test/index.ts"
   },
   "keywords": [],
