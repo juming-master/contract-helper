@@ -10,7 +10,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "A contract helper for tron network",
   "dependencies": {
     "@tronweb3/tronwallet-adapters": "^1.2.6",
     "debounce": "^2.2.0",
