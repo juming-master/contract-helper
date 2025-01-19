@@ -44,7 +44,7 @@ function executePromiseAndCallback(p, callback) {
 async function mapSeries(array, iterator) {
     const result = [];
     for (let i = 0; i < array.length; i++) {
-        const value = await iterator(array[i]);
+        const value = await iterator(array[i], i);
         result.push(value);
     }
     return result;
