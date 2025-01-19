@@ -58,12 +58,12 @@ export function executePromiseAndCallback<T>(
 
 export async function mapSeries<T, R>(
   array: T[],
-  iterator: (item: T) => Promise<R>
+  iterator: (item: T, i: number) => Promise<R>
 ): Promise<R[]> {
   const result: R[] = [];
 
   for (let i = 0; i < array.length; i++) {
-    const value = await iterator(array[i]);
+    const value = await iterator(array[i], i);
     result.push(value);
   }
 
