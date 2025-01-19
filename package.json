@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "types": "types",
   "scripts": {
-    "compile":"npx tsc",
+    "compile": "npx tsc",
     "test": "npx ts-node ./test/index.ts"
   },
   "keywords": [],
@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "@tronweb3/tronwallet-adapters": "^1.2.6",
+    "debounce": "^2.2.0",
     "ethers": "^6.13.4",
     "tronweb": "^6.0.0",
     "wait": "^0.4.2"

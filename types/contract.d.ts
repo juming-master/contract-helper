@@ -1,14 +1,16 @@
 import { TronWeb } from "tronweb";
-import { ContractOption, MultiCallContractOption, Wallet, TransactionOption } from "./types";
+import { ContractOption, MultiCallContractOption, TransactionOption, ContractQuery, ContractQueryTrigger, ContractQueryCallback, SignTransaction } from "./types";
+import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
 export declare class TronContractHelper {
     private provider;
     private multicall;
-    private signer;
+    private pendingQueries;
+    private lazyExec;
     /**
      * @param provider - Tronweb instance
      * @param signer - Adapter, reference the @tronweb3/tronwallet-abstract-adapter
      */
-    constructor(provider: TronWeb, signer: Wallet, multicallAddress?: string);
+    constructor(provider: TronWeb, multicallAddress?: string, multicallLazyQueryTimeout?: number);
     /**
      * contractOption: {
      *  address:string;// contract address
@@ -19,6 +21,8 @@ export declare class TronContractHelper {
      */
     getContractValue<T>(contractOption: ContractOption): Promise<T>;
     getMultiContractValues<T>(contractOptions: MultiCallContractOption[]): Promise<T>;
+    signTransaction(signer: string, sign: SignTransaction, contractOption: ContractOption): Promise<SignedTransaction<ContractParamter>>;
+    broadcastTransaction(signedTransaction: SignedTransaction<ContractParamter>, options?: TransactionOption): Promise<import("tronweb/lib/esm/types").TransactionInfo | import("./types").FastTransactionResult<ContractParamter>>;
     /**
      * options: TransactionOptions
      * TransactionOptions = {
@@ -26,7 +30,11 @@ export declare class TronContractHelper {
      *    error?: (error: any) => void;
      * }
      */
-    send(contractOption: ContractOption, options?: TransactionOption): Promise<import("tronweb/lib/esm/types").TransactionInfo | import("./types").FastTransactionResult<import("tronweb/lib/esm/types").ContractParamter>>;
+    send(signer: string, sign: SignTransaction, contractOption: ContractOption, options?: TransactionOption): Promise<import("tronweb/lib/esm/types").TransactionInfo | import("./types").FastTransactionResult<ContractParamter>>;
+    get pendingQueriesLength(): number;
+    queryByBundle<T>(query: Omit<MultiCallContractOption, "key">): Promise<T>;
+    addPendingQuery<T = any>(query: ContractQuery<T>, trigger?: ContractQueryTrigger): Promise<T>;
+    executePendingQueries<T>(callback?: ContractQueryCallback<T>): Promise<T>;
 }
 export default TronContractHelper;
 //# sourceMappingURL=contract.d.ts.map

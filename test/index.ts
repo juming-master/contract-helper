@@ -240,28 +240,30 @@ const USDT_ABI = [
 
 async function main() {
   const privateKey =
-    "00aa70cb4f4c509fdb6c655a98af06cf2c7d98ff36fe677d29179855adcf26d1";
+    "";
   const multicall = "TZHL5DTcqr6r3uugk2fgtZKHwe4Yp2bsQi";
-  const signer = new TronWebAdapter(privateKey);
-  await signer.connect();
-  const helper = new TronContractHelper(
-    createTronWeb(ChainId.Nile, privateKey),
-    signer,
-    multicall
-  );
-  const USDT = "TU1ntBzpGPp7GJkzxLTKwYsneJ9JKUmBCK"; // Nile USDT
+  const provider = createTronWeb(ChainId.Nile, privateKey);
+  const helper = new TronContractHelper(provider, multicall);
+  const USDT = "TZ78R2E6ejfFhxq8hxrmuqT6hGBxjHQbo4"; // Nile USDT
   // call
   const name = await helper.getContractValue<string>({
     address: USDT,
-    abi: USDT_ABI, // contract abi
-    method: "name", // contract method name
+    // abi: USDT_ABI, // contract abi
+    method: "function name() view returns (string)", // contract method name
   });
+  debugger;
   const decimals = await helper.getContractValue<BigNumber>({
     address: USDT,
     abi: USDT_ABI, // contract abi
     method: "decimals()", // 或者 decimals 也行， contract method name
   });
   const balanceOf = await helper.getContractValue<BigNumber>({
+    address: USDT,
+    abi: USDT_ABI, // contract abi
+    method: "balanceOf(address)",
+    parameters: ["TEvddbScTeNPppiDRWB4Zn8WU3Q7sgEZr1"],
+  });
+  const lazyBalanceOf = await helper.queryByBundle<BigNumber>({
     address: USDT,
     abi: USDT_ABI, // contract abi
     method: "balanceOf(address)",
@@ -277,7 +279,7 @@ async function main() {
       key: "name",
       address: USDT,
       abi: USDT_ABI, // contract abi
-      method: "name", // contract method name
+      method: "name()", // contract method name
     },
     {
       key: "decimals",
@@ -296,23 +298,24 @@ async function main() {
   console.log(
     name.toString(),
     decimals.toString(),
-    balanceOf.toString(),
+    balanceOf.toString() === lazyBalanceOf.toString(),
     JSON.stringify(result)
   );
   debugger;
-  // send
+  //
+  const amount = new BigNumber(1).shiftedBy(decimals.toNumber()).toFixed();
   await helper.send(
+    (tx) => {
+      return provider.trx.signTransaction(tx);
+    },
     {
       address: USDT,
       abi: USDT_ABI,
       method: "transfer(address,uint256)",
-      parameters: [
-        "TEvddbScTeNPppiDRWB4Zn8WU3Q7sgEZr1",
-        new BigNumber(1).shiftedBy(decimals.toNumber()),
-      ],
+      parameters: ["THMKhmfLxawXn1xDQhp8pRmEqXFy44hFyf", amount],
     },
     {
-      check: "slow",
+      check: "fast",
       success() {
         console.log("confirmed");
       },
@@ -321,6 +324,7 @@ async function main() {
       },
     }
   );
+  console.log("Transfer fast!");
 }
 
 main();

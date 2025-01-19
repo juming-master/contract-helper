@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.trackTransaction = exports.fastCheck = exports.slowCheck = exports.formatToEthAddress = exports.formatHexAddress = void 0;
 exports.formatBase58Address = formatBase58Address;
-exports.validateContractOptions = validateContractOptions;
+exports.transformContractOptions = transformContractOptions;
 exports.getInterfaceAndFragments = getInterfaceAndFragments;
 exports.handleValue = handleValue;
 exports.handleContractValue = handleContractValue;
@@ -35,20 +35,37 @@ const formatToEthAddress = function (address) {
     throw new Error(`${address} is invalid address.`);
 };
 exports.formatToEthAddress = formatToEthAddress;
-function validateContractOptions(contractOption) {
-    const { address, abi, method } = contractOption;
+function transformContractOptions(contractOption) {
+    let { address, abi, method } = contractOption;
     if (!address) {
         throw new Error(`No contract address is provided.`);
-    }
-    if (!abi) {
-        throw new Error(`No contract abi is provided.`);
     }
     if (!method) {
         throw new Error(`No contract method is provided.`);
     }
+    let interf;
+    if (!abi) {
+        let fragment = method.trim();
+        fragment = fragment.startsWith("function")
+            ? fragment
+            : `function ${fragment}`;
+        try {
+            let temp = JSON.stringify([fragment]);
+            interf = new ethers_1.Interface(temp);
+        }
+        catch (e) {
+            throw new Error(`Transform method[${method}] to abi error!`);
+        }
+    }
+    else {
+        interf = new ethers_1.Interface(abi);
+    }
+    abi = JSON.parse(interf.formatJson());
+    method = interf.getFunction(method).format("sighash");
+    return Object.assign(Object.assign({}, contractOption), { abi: abi, method });
 }
 function getInterfaceAndFragments(contractOption) {
-    const { address, abi, method, parameters = [] } = contractOption;
+    const { address, abi, method, parameters = [], } = transformContractOptions(contractOption);
     const iface = new ethers_1.Interface(abi);
     const functionFragment = iface.getFunction(method);
     if (!functionFragment ||

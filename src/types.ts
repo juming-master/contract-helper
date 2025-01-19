@@ -8,10 +8,11 @@ import {
   TransactionInfo,
   TriggerSmartContractOptions,
 } from "tronweb/lib/esm/types";
+import { PromiseCallback } from "./helper";
 
 export interface ContractOption {
   address: string;
-  abi: InterfaceAbi;
+  abi?: InterfaceAbi;
   method: string;
   parameters?: Array<any>;
   methodOverrides?: TriggerSmartContractOptions;
@@ -127,12 +128,9 @@ export class TronResultError extends Error {
   }
 }
 
-export interface Wallet {
-  address?: string | null;
-  signTransaction(
-    transaction: Transaction,
-    privateKey?: string
-  ): Promise<SignedTransaction>;
+export interface SignTransaction {
+  // address: string | null;
+  (transaction: Transaction, privateKey?: string): Promise<SignedTransaction>;
 }
 
 export const CONTRACT_SUCCESS = "SUCCESS";
@@ -174,3 +172,16 @@ export type TransactionOption = {
   success?: (transactionInfo: SimpleTransactionResult) => void;
   error?: (error: any) => void;
 };
+
+export interface ContractCallback<T> {
+  (value: T): Promise<void> | void;
+}
+
+export interface ContractQuery<T = any> {
+  query: MultiCallContractOption;
+  callback?: ContractCallback<T>;
+}
+
+export type ContractQueryCallback<T = any> = PromiseCallback<T>;
+
+export type ContractQueryTrigger<T = any> = ContractQueryCallback<T> | boolean;

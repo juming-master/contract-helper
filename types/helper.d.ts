@@ -8,5 +8,7 @@ export interface PromiseCallback<T> {
         (err: any): void;
     };
 }
+export declare function executePromise<T>(fn: RetryFunction<T>, callback?: PromiseCallback<T>): Promise<T>;
 export declare function executePromiseAndCallback<T>(p: Promise<T>, callback: PromiseCallback<T>): Promise<T>;
+export declare function mapSeries<T, R>(array: T[], iterator: (item: T) => Promise<R>): Promise<R[]>;
 //# sourceMappingURL=helper.d.ts.map

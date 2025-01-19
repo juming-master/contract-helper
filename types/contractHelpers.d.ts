@@ -5,7 +5,13 @@ import { SignedTransaction, TransactionInfo } from "tronweb/lib/esm/types";
 export declare function formatBase58Address(address: string): string;
 export declare const formatHexAddress: (address: string) => string;
 export declare const formatToEthAddress: (address: string) => string;
-export declare function validateContractOptions(contractOption: ContractOption): void;
+export declare function transformContractOptions(contractOption: ContractOption): {
+    abi: import("ethers").InterfaceAbi;
+    method: string;
+    address: string;
+    parameters?: Array<any>;
+    methodOverrides?: import("tronweb/lib/esm/types").TriggerSmartContractOptions;
+};
 export declare function getInterfaceAndFragments(contractOption: ContractOption): {
     functionFragment: FunctionFragment;
     iface: Interface;

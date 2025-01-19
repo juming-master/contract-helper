@@ -12,6 +12,7 @@ import {
 import wait from "wait";
 import { SignedTransaction, TransactionInfo } from "tronweb/lib/esm/types";
 import { retry, executePromiseAndCallback } from "./helper";
+import { FormatTypes } from "tronweb/lib/esm/utils";
 
 export function formatBase58Address(address: string) {
   if (!TronWeb.isAddress(address)) {
@@ -34,21 +35,41 @@ export const formatToEthAddress = function (address: string) {
   throw new Error(`${address} is invalid address.`);
 };
 
-export function validateContractOptions(contractOption: ContractOption) {
-  const { address, abi, method } = contractOption;
+export function transformContractOptions(contractOption: ContractOption) {
+  let { address, abi, method } = contractOption;
   if (!address) {
     throw new Error(`No contract address is provided.`);
-  }
-  if (!abi) {
-    throw new Error(`No contract abi is provided.`);
   }
   if (!method) {
     throw new Error(`No contract method is provided.`);
   }
+  let interf: Interface;
+  if (!abi) {
+    let fragment = method.trim();
+    fragment = fragment.startsWith("function")
+      ? fragment
+      : `function ${fragment}`;
+    try {
+      let temp = JSON.stringify([fragment]);
+      interf = new Interface(temp);
+    } catch (e) {
+      throw new Error(`Transform method[${method}] to abi error!`);
+    }
+  } else {
+    interf = new Interface(abi);
+  }
+  abi = JSON.parse(interf.formatJson());
+  method = interf.getFunction(method)!.format("sighash");
+  return { ...contractOption, abi: abi!, method };
 }
 
 export function getInterfaceAndFragments(contractOption: ContractOption) {
-  const { address, abi, method, parameters = [] } = contractOption;
+  const {
+    address,
+    abi,
+    method,
+    parameters = [],
+  } = transformContractOptions(contractOption);
   const iface = new Interface(abi);
   const functionFragment = iface.getFunction(method);
   if (
@@ -150,7 +171,6 @@ export const fastCheck = async function (
     1000
   );
 };
-
 
 export const trackTransaction = async function (
   signedTransaction: SignedTransaction,

@@ -34,6 +34,16 @@ export interface PromiseCallback<T> {
   };
 }
 
+export function executePromise<T>(
+  fn: RetryFunction<T>,
+  callback?: PromiseCallback<T>
+): Promise<T> {
+  if (callback) {
+    fn().then(callback.success).catch(callback.error);
+  }
+  return fn();
+}
+
 export function executePromiseAndCallback<T>(
   p: Promise<T>,
   callback: PromiseCallback<T>
@@ -44,4 +54,18 @@ export function executePromiseAndCallback<T>(
     callback.error && callback.error(err);
   });
   return p;
+}
+
+export async function mapSeries<T, R>(
+  array: T[],
+  iterator: (item: T) => Promise<R>
+): Promise<R[]> {
+  const result: R[] = [];
+
+  for (let i = 0; i < array.length; i++) {
+    const value = await iterator(array[i]);
+    result.push(value);
+  }
+
+  return result;
 }
