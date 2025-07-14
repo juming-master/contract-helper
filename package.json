@@ -1,5 +1,5 @@
 {
-  "name": "tron-contract-helper",
+  "name": "contract-helper",
   "version": "1.0.3",
   "main": "dist/index.js",
   "types": "types",
