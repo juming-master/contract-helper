@@ -1,5 +1,10 @@
-import { InterfaceAbi } from "ethers";
-import { TronWeb } from "tronweb";
+import {
+  InterfaceAbi,
+  ContractMethodArgs,
+  TransactionLike,
+  Provider,
+} from "ethers";
+import { BigNumber, TronWeb } from "tronweb";
 import {
   ContractParamter,
   SignedTransaction,
@@ -9,19 +14,30 @@ import {
   TriggerSmartContractOptions,
 } from "tronweb/lib/esm/types";
 import { PromiseCallback } from "./helper";
+import {
+  TransactionRequest as EthTransactionRequest,
+  TransactionResponse as EthTransactionResponse,
+} from "ethers";
+import {
+  SignedTransaction as TronSignedTransaction,
+  Transaction as TronTransaction,
+} from "tronweb/lib/esm/types";
 
-export interface ContractOption {
+export interface ContractCallArgs {
   address: string;
   abi?: InterfaceAbi;
   method: string;
   parameters?: Array<any>;
-  methodOverrides?: TriggerSmartContractOptions;
+  options?: {
+    trx?: TriggerSmartContractOptions;
+    eth?: Omit<
+      TransactionLike,
+      "to" | "from" | "nonce" | "data" | "chainId" | "type"
+    >;
+  };
 }
 
-export type MultiCallContractOption = Omit<
-  ContractOption,
-  "methodOverrides"
-> & {
+export type MultiCallArgs = Omit<ContractCallArgs, "methodOverrides"> & {
   key: string;
 };
 
@@ -30,7 +46,7 @@ export interface MulticallOption {
   contractAddress: string;
 }
 
-export interface CallContext {
+export interface Call {
   /**
    * your contract method name
    */
@@ -44,7 +60,7 @@ export interface CallContext {
 }
 
 // tslint:disable-next-line: no-any
-export interface ContractCallContext<TContext = any> {
+export interface ContractCall<TContext = any> {
   /**
    * Reference to this contract call context
    */
@@ -53,7 +69,7 @@ export interface ContractCallContext<TContext = any> {
   /**
    * The contract address
    */
-  contractAddress: string;
+  address: string;
 
   /**
    * The abi for the contract
@@ -64,7 +80,7 @@ export interface ContractCallContext<TContext = any> {
   /**
    * All the calls you want to do for this contract
    */
-  call: CallContext;
+  call: Call;
 
   /**
    * Store any context or state in here so you don't need
@@ -74,7 +90,7 @@ export interface ContractCallContext<TContext = any> {
   context?: TContext | undefined;
 }
 
-export interface CallReturnContext extends CallContext {
+export interface CallReturnContext extends Call {
   // tslint:disable-next-line: no-any
   returnValue: any;
   /**
@@ -91,29 +107,29 @@ export interface CallReturnContext extends CallContext {
 
 export interface ContractCallResults {
   results: { [key: string]: ContractCallReturnContext };
-  blockNumber: number;
+  blockNumber: BigNumber;
 }
 
 export interface ContractCallReturnContext {
-  originalContractCallContext: ContractCallContext;
+  originalContractCallContext: ContractCall;
   callReturnContext: CallReturnContext;
 }
 
-export interface AggregateCallContext {
-  contractContextIndex: number;
+export interface AggregateCall {
+  contractCallIndex: number;
   target: string;
   encodedData: string;
 }
 
 export interface AggregateContractResponse {
-  blockNumber: BigInt;
+  blockNumber: BigNumber;
   returnData: string[];
 }
 
 export interface AggregateResponse {
-  blockNumber: number;
+  blockNumber: BigNumber;
   results: Array<{
-    contractContextIndex: number;
+    contractCallIndex: number;
     methodResult: any;
   }>;
 }
@@ -128,9 +144,16 @@ export class TronResultError extends Error {
   }
 }
 
-export interface SignTransaction {
-  // address: string | null;
-  (transaction: Transaction, privateKey?: string): Promise<SignedTransaction>;
+export type SignTransaction =
+  | {
+      (tx: EthTransactionRequest): Promise<EthTransactionResponse>;
+    }
+  | {
+      (tx: TronTransaction): Promise<TronSignedTransaction>;
+    };
+
+export interface EthSignTransaction {
+  (txHash: string): Promise<{ r: string; s: string; v: number }>;
 }
 
 export const CONTRACT_SUCCESS = "SUCCESS";
@@ -154,7 +177,7 @@ export interface FastTransactionResult<T = ContractParamter> {
 }
 
 export interface SimpleTransactionResult {
-  blockNumber?: number;
+  blockNumber?: BigNumber;
   id: string;
 }
 
@@ -168,7 +191,7 @@ export class TransactionError extends Error {
 }
 
 export type TransactionOption = {
-  check?: "fast" | "slow";
+  check?: "fast" | "final";
   success?: (transactionInfo: SimpleTransactionResult) => void;
   error?: (error: any) => void;
 };
@@ -178,10 +201,17 @@ export interface ContractCallback<T> {
 }
 
 export interface ContractQuery<T = any> {
-  query: MultiCallContractOption;
+  query: MultiCallArgs;
   callback?: ContractCallback<T>;
 }
 
 export type ContractQueryCallback<T = any> = PromiseCallback<T>;
 
 export type ContractQueryTrigger<T = any> = ContractQueryCallback<T> | boolean;
+
+export type ContractHelperOptions = {
+  provider: TronWeb | Provider;
+  multicallV2Address: string;
+  multicallLazyQueryTimeout?: number;
+  multicallMaxPendingLength?: number;
+};
