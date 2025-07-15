@@ -23,14 +23,11 @@ export class ContractHelper {
   private multicallMaxPendingLength: number;
 
   /**
-   * @param provider - Tronweb instance
-   * @param signer - Adapter, reference the @tronweb3/tronwallet-abstract-adapter
-   */
-  /**
    * @param options {
    *  provider: TronWeb | Provider(ethers.js);
-   *  multicallV2Address: multicall v2 address;
-   *  multicallLazyQueryTimeout?: number;
+   *  multicallV2Address: multicallv2 address;
+   *  multicallLazyQueryTimeout?: maximum wait time for executing the pending call queue.
+   *  multicallMaxPendingLength?: maximum length for the pending call queue.
    * }
    */
   constructor(options: ContractHelperOptions) {
@@ -57,12 +54,12 @@ export class ContractHelper {
   }
 
   /**
-   * Call the contract readable value.
+   * Call the contract to get a readable value.
    * @param contractCallArgs
    * {
    *  address: contract address.
    *  abi: abi fragments.
-   *  method: method name or full signature(if you use full signature, abi is optional).
+   *  method: method name or full signature. If full signature is used, ABI is optional.
    *  parameters: method parameters.
    * }
    */
@@ -78,25 +75,18 @@ export class ContractHelper {
   }
 
   /**
-   * Call the multicall.
+   * Use Multicall v2 to query with multiple arguments
    */
   multicall<T>(multicallArgs: MultiCallArgs[]) {
     return this.helper.multicall<T>(multicallArgs);
   }
 
   /**
-   * options: TransactionOptions
-   * TransactionOptions = {
-   *    success?: () => void;
-   *    error?: (error: any) => void;
-   * }
-   */
-  /**
-   * Sign the transaction and send it to network.
+   * Sign the transaction and send it to the network.
    * @param from signer address
    * @param signTransaction sign transaction function.
    * @param contractCall contract call arguments.
-   * @param options execute callback options.
+   * @param options execute callback.
    */
   async send(
     from: string,
@@ -123,7 +113,7 @@ export class ContractHelper {
   }
 
   /**
-   * Insert contract call to pending call queue, wait for the pending calls to be executed in a multicall request.
+   * Insert a contract call to the pending call queue, and wait for the pending calls to be executed in a multicall request.
    */
   pendingCall<T>(query: ContractCallArgs) {
     const key = uuidv4();
@@ -148,7 +138,7 @@ export class ContractHelper {
   }
 
   /**
-   * Insert contract call to pending call queue.
+   * Insert a contract call to the pending call queue.
    */
   addPendingCall<T = any>(
     query: ContractQuery<T>,

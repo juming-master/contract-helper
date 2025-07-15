@@ -1,21 +1,15 @@
 import {
-  AggregateCall,
   AggregateContractResponse,
-  ContractCallResults,
-  ContractCallReturnContext,
   ContractCallArgs,
   MultiCallArgs,
   SimpleTransactionResult,
-  TransactionError,
 } from "../types";
 import {
-  ABIFunctionNotFoundError,
   buildAggregateCall,
   buildUpAggregateResponse,
-  findFragmentFromAbi,
   transformContractCallArgs,
 } from "./utils";
-import { deepClone, retry } from "../helper";
+import { retry } from "../helper";
 import wait from "wait";
 import { ContractHelperBase } from "./contract-helper-base";
 import {
@@ -30,6 +24,7 @@ import {
   getAddress,
 } from "ethers";
 import BigNumber from "bignumber.js";
+import { TransactionReceiptError } from "./errors";
 
 const ABI = [
   {
@@ -351,7 +346,7 @@ export class EthContractHelper extends ContractHelperBase {
           return this.checkReceipt(txID, confirmations);
         }
         if (!receipt.status) {
-          throw new TransactionError("Transaction execute reverted", {
+          throw new TransactionReceiptError("Transaction execute reverted", {
             id: txID,
           });
         }

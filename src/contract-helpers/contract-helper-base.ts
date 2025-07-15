@@ -6,7 +6,6 @@ import {
   ContractCallResults,
   ContractCallArgs,
   MultiCallArgs as MultiCallArgs,
-  MulticallOption,
   SimpleTransactionResult,
   TransactionError,
   TransactionOption,
@@ -49,7 +48,7 @@ export abstract class ContractHelperBase {
     txID: string,
     options: TransactionOption = {}
   ) {
-    const checkOption = options.check ?? "slow";
+    const checkOption = options.check ?? "final";
     if (checkOption === "fast") {
       return await this.fastCheckTransactionResult(txID)
         .then((transaction) => {

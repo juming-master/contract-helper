@@ -1,16 +1,12 @@
 import {
   InterfaceAbi,
-  ContractMethodArgs,
   TransactionLike,
   Provider,
 } from "ethers";
 import { BigNumber, TronWeb } from "tronweb";
 import {
   ContractParamter,
-  SignedTransaction,
-  Transaction,
   TransactionContract,
-  TransactionInfo,
   TriggerSmartContractOptions,
 } from "tronweb/lib/esm/types";
 import { PromiseCallback } from "./helper";
@@ -40,11 +36,6 @@ export interface ContractCallArgs {
 export type MultiCallArgs = Omit<ContractCallArgs, "methodOverrides"> & {
   key: string;
 };
-
-export interface MulticallOption {
-  provider: TronWeb;
-  contractAddress: string;
-}
 
 export interface Call {
   /**
@@ -134,16 +125,6 @@ export interface AggregateResponse {
   }>;
 }
 
-export class TronResultError extends Error {
-  code: number = 0;
-  error: string = "";
-  transaction: string = "";
-  output: TransactionInfo | null = null;
-  constructor(message: string) {
-    super(message);
-  }
-}
-
 export type SignTransaction =
   | {
       (tx: EthTransactionRequest): Promise<EthTransactionResponse>;
@@ -151,10 +132,6 @@ export type SignTransaction =
   | {
       (tx: TronTransaction): Promise<TronSignedTransaction>;
     };
-
-export interface EthSignTransaction {
-  (txHash: string): Promise<{ r: string; s: string; v: number }>;
-}
 
 export const CONTRACT_SUCCESS = "SUCCESS";
 
@@ -181,14 +158,6 @@ export interface SimpleTransactionResult {
   id: string;
 }
 
-export class TransactionError extends Error {
-  transactionInfo: SimpleTransactionResult;
-
-  constructor(message: string, transactionInfo: SimpleTransactionResult) {
-    super(message);
-    this.transactionInfo = transactionInfo;
-  }
-}
 
 export type TransactionOption = {
   check?: "fast" | "final";

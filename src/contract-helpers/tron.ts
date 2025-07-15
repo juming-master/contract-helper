@@ -7,8 +7,6 @@ import {
   FastTransactionResult,
   MultiCallArgs,
   SimpleTransactionResult,
-  TransactionError,
-  TronResultError,
 } from "../types";
 import {
   buildAggregateCall,
@@ -26,6 +24,10 @@ import wait from "wait";
 import { retry } from "../helper";
 import BigNumber from "bignumber.js";
 import { FunctionFragment } from "ethers";
+import {
+  BroadcastTronTransactionError,
+  TransactionReceiptError,
+} from "./errors";
 
 const ABI = [
   {
@@ -383,12 +385,12 @@ export class TronContractHelper extends ContractHelperBase {
       signedTransaction
     );
     if (broadcast.code) {
-      const err = new TronResultError(broadcast.message);
+      const err = new BroadcastTronTransactionError(broadcast.message);
       err.code = broadcast.code;
       if (broadcast.message) {
         err.message = this.provider.toUtf8(broadcast.message);
       }
-      const error = new TronResultError(err.message);
+      const error = new BroadcastTronTransactionError(err.message);
       error.code = broadcast.code;
       throw error;
     }
@@ -437,7 +439,7 @@ export class TronContractHelper extends ContractHelperBase {
             (result) => result.contractRet === CONTRACT_SUCCESS
           )
         ) {
-          throw new TransactionError(
+          throw new TransactionReceiptError(
             transaction.ret
               .filter((el) => el.contractRet !== CONTRACT_SUCCESS)
               .map((el) => el.contractRet)
@@ -467,12 +469,12 @@ export class TronContractHelper extends ContractHelperBase {
 
     if (output.result && output.result === "FAILED") {
       const errMsg = this.provider.toUtf8(output.resMessage);
-      throw new TransactionError(errMsg, transactionInfo);
+      throw new TransactionReceiptError(errMsg, transactionInfo);
     }
 
     if (!Object.prototype.hasOwnProperty.call(output, "contractResult")) {
       const errMsg = "Failed to execute: " + JSON.stringify(output, null, 2);
-      throw new TransactionError(errMsg, transactionInfo);
+      throw new TransactionReceiptError(errMsg, transactionInfo);
     }
 
     return transactionInfo;

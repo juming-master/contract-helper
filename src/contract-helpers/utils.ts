@@ -6,7 +6,6 @@ import {
   Interface,
   InterfaceAbi,
   isAddress,
-  Result,
 } from "ethers";
 import {
   AggregateCall,
@@ -19,25 +18,15 @@ import {
 } from "../types";
 import { keccak256, toHex } from "viem";
 import { deepClone } from "../helper";
+import {
+  ABIFunctionNotProvidedError,
+  ContractAddressNotProvidedError,
+  ContractMethodNotProvidedError,
+} from "./errors";
 
-export class ContractAddressNotProvidedError extends Error {
-  constructor() {
-    super(`Contract address is not provided.`);
-  }
-}
-export class ContractMethodNotProvidedError extends Error {
-  constructor() {
-    super(`Contract method is not provided.`);
-  }
-}
-export class ABIFunctionNotFoundError extends Error {
-  constructor(contractCall: { address: string; method: string }) {
-    super(
-      `ABI function is not found for method ${contractCall.method} in ${contractCall.address}, abi or full method signature is needed.`
-    );
-  }
-}
-
+/**
+ * Convert a Tron hex address or base58 address to a base58 address.
+ */
 export function formatBase58Address(address: string) {
   if (!TronWeb.isAddress(address)) {
     return address;
@@ -45,6 +34,9 @@ export function formatBase58Address(address: string) {
   return TronWeb.address.fromHex(TronWeb.address.toChecksumAddress(address));
 }
 
+/**
+ * Convert a Tron hex address or base58 address to a hex address.
+ */
 const formatHexAddress = function (address: string) {
   if (!TronWeb.isAddress(address)) {
     return address;
@@ -52,6 +44,9 @@ const formatHexAddress = function (address: string) {
   return TronWeb.address.toChecksumAddress(address);
 };
 
+/**
+ * Convert a Tron hex address or base58 address or eth address to a formatted hex address.
+ */
 export const formatToEthAddress = function (address: string) {
   if (TronWeb.isAddress(address)) {
     return "0x" + formatHexAddress(address).slice(2).toLowerCase();
@@ -71,11 +66,11 @@ const getMethodConfig = function (
   try {
     interf = new Interface(abi as any);
   } catch (e) {
-    throw new ABIFunctionNotFoundError({ address, method });
+    throw new ABIFunctionNotProvidedError({ address, method });
   }
   const fn = interf!.getFunction(method);
   if (!fn) {
-    throw new ABIFunctionNotFoundError({ address, method });
+    throw new ABIFunctionNotProvidedError({ address, method });
   }
   const signature = fn.format("minimal");
   const selector = keccak256(toHex(signature)).slice(0, 10);
@@ -141,7 +136,7 @@ export function buildAggregateCall(
     };
     const fragment = findFragmentFromAbi(contractCall);
     if (!fragment) {
-      throw new ABIFunctionNotFoundError({
+      throw new ABIFunctionNotProvidedError({
         address: contractCall.address,
         method: contractCall.call.methodName,
       });
