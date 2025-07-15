@@ -1,16 +1,15 @@
-import { executePromiseAndCallback } from "../helper";
+import { executePromiseAndCallback } from "./helper";
 import {
   AggregateCall,
   AggregateContractResponse,
-  ContractCall,
-  ContractCallResults,
   ContractCallArgs,
   MultiCallArgs as MultiCallArgs,
   SimpleTransactionResult,
-  TransactionError,
   TransactionOption,
   SignTransaction,
-} from "../types";
+  CheckTransactionType,
+} from "./types";
+import { TransactionReceiptError } from "./errors";
 
 export interface Contract {
   multicall(calls: AggregateCall[]): AggregateContractResponse;
@@ -48,8 +47,8 @@ export abstract class ContractHelperBase {
     txID: string,
     options: TransactionOption = {}
   ) {
-    const checkOption = options.check ?? "final";
-    if (checkOption === "fast") {
+    const checkOption = options.check ?? CheckTransactionType.Final;
+    if (checkOption === CheckTransactionType.Final) {
       return await this.fastCheckTransactionResult(txID)
         .then((transaction) => {
           executePromiseAndCallback<SimpleTransactionResult>(
@@ -58,7 +57,7 @@ export abstract class ContractHelperBase {
           );
           return transaction;
         })
-        .catch((error: TransactionError) => {
+        .catch((error: TransactionReceiptError) => {
           executePromiseAndCallback<SimpleTransactionResult>(
             Promise.reject(error),
             options
@@ -74,7 +73,7 @@ export abstract class ContractHelperBase {
         );
         return transaction;
       })
-      .catch((error: TransactionError) => {
+      .catch((error: TransactionReceiptError) => {
         executePromiseAndCallback<SimpleTransactionResult>(
           Promise.reject(error),
           options

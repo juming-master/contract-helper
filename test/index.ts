@@ -1,5 +1,9 @@
 import { BigNumber, TronWeb } from "tronweb";
-import { TronContractHelper } from "../src/index";
+import {
+  CheckTransactionType,
+  ContractHelper,
+  TronTransactionRequest,
+} from "../src/index";
 import {
   Adapter,
   AdapterName,
@@ -239,38 +243,40 @@ const USDT_ABI = [
 ];
 
 async function main() {
-  const privateKey =
-    "";
+  const privateKey = "";
   const multicall = "TZHL5DTcqr6r3uugk2fgtZKHwe4Yp2bsQi";
   const provider = createTronWeb(ChainId.Nile, privateKey);
-  const helper = new TronContractHelper(provider, multicall);
+  const helper = new ContractHelper({
+    provider,
+    multicallV2Address: multicall,
+  });
   const USDT = "TZ78R2E6ejfFhxq8hxrmuqT6hGBxjHQbo4"; // Nile USDT
   // call
-  const name = await helper.getContractValue<string>({
+  const name = await helper.call<string>({
     address: USDT,
     // abi: USDT_ABI, // contract abi
     method: "function name() view returns (string)", // contract method name
   });
   debugger;
-  const decimals = await helper.getContractValue<BigNumber>({
+  const decimals = await helper.call<BigNumber>({
     address: USDT,
     abi: USDT_ABI, // contract abi
     method: "decimals()", // 或者 decimals 也行， contract method name
   });
-  const balanceOf = await helper.getContractValue<BigNumber>({
+  const balanceOf = await helper.call<BigNumber>({
     address: USDT,
     abi: USDT_ABI, // contract abi
     method: "balanceOf(address)",
     parameters: ["TEvddbScTeNPppiDRWB4Zn8WU3Q7sgEZr1"],
   });
-  const lazyBalanceOf = await helper.queryByBundle<BigNumber>({
+  const lazyBalanceOf = await helper.lazyCall<BigNumber>({
     address: USDT,
     abi: USDT_ABI, // contract abi
     method: "balanceOf(address)",
     parameters: ["TEvddbScTeNPppiDRWB4Zn8WU3Q7sgEZr1"],
   });
   // or in one multicall
-  const result = await helper.getMultiContractValues<{
+  const result = await helper.multicall<{
     name: string;
     decimals: BigNumber;
     balanceOf: BigNumber;
@@ -305,7 +311,10 @@ async function main() {
   //
   const amount = new BigNumber(1).shiftedBy(decimals.toNumber()).toFixed();
   await helper.send(
-    (tx) => {
+    (
+      await provider.trx.getAccount()
+    ).address,
+    (tx: TronTransactionRequest) => {
       return provider.trx.signTransaction(tx);
     },
     {
@@ -315,7 +324,7 @@ async function main() {
       parameters: ["THMKhmfLxawXn1xDQhp8pRmEqXFy44hFyf", amount],
     },
     {
-      check: "fast",
+      check: CheckTransactionType.Final,
       success() {
         console.log("confirmed");
       },

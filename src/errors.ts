@@ -1,5 +1,5 @@
 import { TransactionInfo } from "tronweb/lib/esm/types";
-import { SimpleTransactionResult } from "../types";
+import { SimpleTransactionResult } from "./types";
 
 export class ContractAddressNotProvidedError extends Error {
   constructor() {

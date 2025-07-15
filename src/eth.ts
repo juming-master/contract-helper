@@ -3,13 +3,13 @@ import {
   ContractCallArgs,
   MultiCallArgs,
   SimpleTransactionResult,
-} from "../types";
+} from "./types";
 import {
   buildAggregateCall,
   buildUpAggregateResponse,
   transformContractCallArgs,
-} from "./utils";
-import { retry } from "../helper";
+} from "./contract-utils";
+import { retry } from "./helper";
 import wait from "wait";
 import { ContractHelperBase } from "./contract-helper-base";
 import {

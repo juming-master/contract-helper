@@ -15,9 +15,9 @@ import {
   ContractCallResults,
   ContractCallReturnContext,
   MultiCallArgs,
-} from "../types";
+} from "./types";
 import { keccak256, toHex } from "viem";
-import { deepClone } from "../helper";
+import { deepClone } from "./helper";
 import {
   ABIFunctionNotProvidedError,
   ContractAddressNotProvidedError,

@@ -7,13 +7,13 @@ import {
   FastTransactionResult,
   MultiCallArgs,
   SimpleTransactionResult,
-} from "../types";
+} from "./types";
 import {
   buildAggregateCall,
   buildUpAggregateResponse,
   formatBase58Address,
   transformContractCallArgs,
-} from "./utils";
+} from "./contract-utils";
 import {
   ContractParamter,
   SignedTransaction,
@@ -21,7 +21,7 @@ import {
 } from "tronweb/lib/esm/types";
 import { ContractHelperBase } from "./contract-helper-base";
 import wait from "wait";
-import { retry } from "../helper";
+import { retry } from "./helper";
 import BigNumber from "bignumber.js";
 import { FunctionFragment } from "ethers";
 import {

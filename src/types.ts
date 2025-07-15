@@ -1,8 +1,4 @@
-import {
-  InterfaceAbi,
-  TransactionLike,
-  Provider,
-} from "ethers";
+import { InterfaceAbi, TransactionLike, Provider } from "ethers";
 import { BigNumber, TronWeb } from "tronweb";
 import {
   ContractParamter,
@@ -15,8 +11,18 @@ import {
   TransactionResponse as EthTransactionResponse,
 } from "ethers";
 import {
-  SignedTransaction as TronSignedTransaction,
-  Transaction as TronTransaction,
+  SignedTransaction as TronTransactionResponse,
+  Transaction as TronTransactionRequest,
+} from "tronweb/lib/esm/types";
+
+export {
+  TransactionRequest as EthTransactionRequest,
+  TransactionResponse as EthTransactionResponse,
+} from "ethers";
+
+export {
+  Transaction as TronTransactionRequest,
+  SignedTransaction as TronTransactionResponse,
 } from "tronweb/lib/esm/types";
 
 export interface ContractCallArgs {
@@ -130,7 +136,7 @@ export type SignTransaction =
       (tx: EthTransactionRequest): Promise<EthTransactionResponse>;
     }
   | {
-      (tx: TronTransaction): Promise<TronSignedTransaction>;
+      (tx: TronTransactionRequest): Promise<TronTransactionResponse>;
     };
 
 export const CONTRACT_SUCCESS = "SUCCESS";
@@ -158,9 +164,13 @@ export interface SimpleTransactionResult {
   id: string;
 }
 
+export enum CheckTransactionType {
+  Fast = "fast",
+  Final = "final",
+}
 
 export type TransactionOption = {
-  check?: "fast" | "final";
+  check?: CheckTransactionType;
   success?: (transactionInfo: SimpleTransactionResult) => void;
   error?: (error: any) => void;
 };

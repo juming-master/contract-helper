@@ -7,11 +7,11 @@ import {
   ContractQueryTrigger,
   ContractQueryCallback,
   SignTransaction,
-} from "../types";
-import { executePromise, mapSeries, retry } from "../helper";
+} from "./types";
+import { executePromise, mapSeries, retry } from "./helper";
 import debounce, { DebouncedFunction } from "debounce";
 import { v4 as uuidv4 } from "uuid";
-import { ContractHelperOptions } from "../types";
+import { ContractHelperOptions } from "./types";
 import { ContractHelperBase } from "./contract-helper-base";
 import { TronContractHelper } from "./tron";
 import { EthContractHelper } from "./eth";
@@ -39,10 +39,10 @@ export class ContractHelper {
       provider instanceof TronWeb
         ? new TronContractHelper(multicallAddr, provider)
         : new EthContractHelper(multicallAddr, provider);
-    this.addPendingCall = this.addPendingCall.bind(this);
+    this.addLazyCall = this.addLazyCall.bind(this);
     this.addPendingQuery = this.addPendingQuery.bind(this);
     this.lazyExec = debounce(() => {
-      return this.executePendingCalls();
+      return this.executeLazyCalls();
     }, multicallLazyQueryTimeout);
   }
 
@@ -101,7 +101,7 @@ export class ContractHelper {
   /**
    * Return the pending call length.
    */
-  get pendingCallLength() {
+  get lazyCallsLength() {
     return this.pendingQueries.length;
   }
 
@@ -109,16 +109,16 @@ export class ContractHelper {
    * @deprecated use pendingCallLength instead.
    */
   get pendingQueriesLength() {
-    return this.pendingCallLength;
+    return this.lazyCallsLength;
   }
 
   /**
    * Insert a contract call to the pending call queue, and wait for the pending calls to be executed in a multicall request.
    */
-  pendingCall<T>(query: ContractCallArgs) {
+  lazyCall<T>(query: ContractCallArgs) {
     const key = uuidv4();
     return new Promise<T>((resolve, reject) => {
-      this.addPendingQuery<T>({
+      this.addLazyCall<T>({
         query: {
           key,
           ...query,
@@ -131,16 +131,16 @@ export class ContractHelper {
   }
 
   /**
-   * @deprecated use pendingCall instead.
+   * @deprecated use lazyCall instead.
    */
   queryByBundle<T>(query: ContractCallArgs) {
-    return this.pendingCall(query);
+    return this.lazyCall(query);
   }
 
   /**
    * Insert a contract call to the pending call queue.
    */
-  addPendingCall<T = any>(
+  addLazyCall<T = any>(
     query: ContractQuery<T>,
     trigger?: ContractQueryTrigger
   ): Promise<T> {
@@ -149,29 +149,29 @@ export class ContractHelper {
     if (
       !query.callback ||
       trigger ||
-      this.pendingCallLength >= this.multicallMaxPendingLength
+      this.lazyCallsLength >= this.multicallMaxPendingLength
     ) {
-      return this.executePendingCalls<T>();
+      return this.executeLazyCalls<T>();
     } else {
       return this.lazyExec();
     }
   }
 
   /**
-   * @deprecated use addPendingCall instead.
+   * @deprecated use addLazyCall instead.
    */
   addPendingQuery<T = any>(
     query: ContractQuery<T>,
     trigger?: ContractQueryTrigger
   ): Promise<T> {
-    return this.addPendingCall(query, trigger);
+    return this.addLazyCall(query, trigger);
   }
 
   /**
    * Execute the pending call queue.
    */
-  executePendingCalls<T>(callback?: ContractQueryCallback<T>) {
-    if (this.pendingCallLength === 0) {
+  executeLazyCalls<T>(callback?: ContractQueryCallback<T>) {
+    if (this.lazyCallsLength === 0) {
       return Promise.resolve([]) as Promise<T>;
     }
     const queries = [...this.pendingQueries];
@@ -205,11 +205,11 @@ export class ContractHelper {
   }
 
   /**
-   * @deprecated use executePendingCalls instead.
+   * @deprecated use executeLazyCalls instead.
    */
   executePendingQueries<T>(callback?: ContractQueryCallback<T>) {
-    return this.executePendingCalls(callback);
+    return this.executeLazyCalls(callback);
   }
 }
 
-export default TronContractHelper;
+export default ContractHelper;
