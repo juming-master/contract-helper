@@ -1,24 +1,43 @@
 {
   "name": "contract-helper",
   "version": "1.0.3",
+  "type": "commonjs",
   "main": "dist/index.js",
   "types": "types",
   "scripts": {
     "compile": "npx tsc",
-    "test": "npx ts-node ./test/index.ts"
+    "test": "mocha --timeout 120000 -r ts-node/register ./test/**/*.ts"
   },
-  "keywords": [],
+  "keywords": [
+    "tron",
+    "trx",
+    "eth",
+    "etherum",
+    "contract helper",
+    "multicall"
+  ],
   "author": "",
   "license": "MIT",
-  "description": "A contract helper for tron network",
+  "description": "A contract helper for tron and eth network",
   "dependencies": {
     "debounce": "^2.2.0",
     "ethers": "^6.13.4",
     "tronweb": "^6.0.0",
+    "uuid": "^11.1.0",
     "wait": "^0.4.2"
   },
   "devDependencies": {
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.0.14",
+    "@types/sinon": "^17.0.4",
+    "chai": "^4.5.0",
+    "dotenv": "^17.2.0",
+    "mocha": "^11.7.1",
+    "sinon": "^21.0.0",
+    "ts-mocha": "^11.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3"
   }
 }

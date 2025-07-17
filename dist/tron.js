@@ -242,9 +242,12 @@ const ABI = [
     },
 ];
 class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
-    constructor(multicallContractAddress, provider) {
+    provider;
+    formatValueType;
+    constructor(multicallContractAddress, provider, formatValue) {
         super(multicallContractAddress);
         this.provider = provider;
+        this.formatValueType = formatValue;
     }
     formatToEthAddress(address) {
         if (tronweb_1.TronWeb.isAddress(address)) {
@@ -269,7 +272,7 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
             const selector = fragment.selector;
             const encodedData = `${selector}${params.slice(2)}`;
             return encodedData;
-        });
+        }, "tron");
     }
     buildUpAggregateResponse(multiCallArgs, response) {
         return (0, contract_utils_1.buildUpAggregateResponse)(multiCallArgs, response, (fragment, data) => {
@@ -277,7 +280,7 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
             return this.provider.utils.abi.decodeParamsV2ByABI(funcABI, data);
         }, (value, fragment) => {
             return this.handleContractValue(value, fragment);
-        });
+        }, "tron");
     }
     formatValue(value, type) {
         switch (true) {
@@ -286,10 +289,15 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
                 return value.map((el) => this.formatValue(el, itemType));
             case type.startsWith("uint"):
             case type.startsWith("int"):
-                // value is BigInt type.
-                return new bignumber_js_1.default(value.toString());
+                return this.formatValueType?.uint === "bigint"
+                    ? BigInt(value.toString())
+                    : new bignumber_js_1.default(value.toString());
             case type === "address":
-                return (0, contract_utils_1.formatBase58Address)(value);
+                return this.formatValueType?.address === "checksum"
+                    ? tronweb_1.TronWeb.address.toChecksumAddress(value)
+                    : this.formatValueType?.address === "hex"
+                        ? tronweb_1.TronWeb.address.toHex(value)
+                        : (0, contract_utils_1.formatBase58Address)(value);
             default:
                 return value;
         }
@@ -299,8 +307,9 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         if (outputs.length === 1 && !outputs[0].name) {
             return this.formatValue(value, outputs[0].type);
         }
-        const result = {};
-        for (let output of outputs) {
+        const result = [];
+        for (let [index, output] of outputs.entries()) {
+            result[index] = this.formatValue(value[index], output.type);
             if (output.name) {
                 result[output.name] = this.formatValue(value[output.name], output.type);
             }
@@ -320,19 +329,19 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         return this.buildUpAggregateResponse(calls, contractResponse);
     }
     async call(contractCallArgs) {
-        const { address, abi, method, parameters = [], } = (0, contract_utils_1.transformContractCallArgs)(contractCallArgs);
+        const { address, abi, method, parameters = [], } = (0, contract_utils_1.transformContractCallArgs)(contractCallArgs, "tron");
         const contract = this.provider.contract(abi, address);
         const rawResult = await contract[method.name](...parameters).call();
         const result = this.handleContractValue(rawResult, method.fragment);
         return result;
     }
-    async broadcastTransaction(signedTransaction) {
-        const broadcast = await this.provider.trx.sendRawTransaction(signedTransaction);
+    static async broadcastTransaction(provider, signedTransaction) {
+        const broadcast = await provider.trx.sendRawTransaction(signedTransaction);
         if (broadcast.code) {
             const err = new errors_1.BroadcastTronTransactionError(broadcast.message);
             err.code = broadcast.code;
             if (broadcast.message) {
-                err.message = this.provider.toUtf8(broadcast.message);
+                err.message = provider.toUtf8(broadcast.message);
             }
             const error = new errors_1.BroadcastTronTransactionError(err.message);
             error.code = broadcast.code;
@@ -340,43 +349,42 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         }
         return broadcast.transaction.txID;
     }
-    async send(from, signTransaction, contractOption) {
-        const { address, method, options, parameters = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption);
+    async send(from, sendTransaction, contractOption) {
+        const { address, method, options, parameters = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "tron");
         const functionFragment = method.fragment;
         const provider = this.provider;
-        const transaction = await provider.transactionBuilder.triggerSmartContract(address, functionFragment.format("sighash"), (options === null || options === void 0 ? void 0 : options.trx) ? options === null || options === void 0 ? void 0 : options.trx : {}, functionFragment.inputs.map((el, i) => ({
+        const transaction = await provider.transactionBuilder.triggerSmartContract(address, functionFragment.format("sighash"), options ? options : {}, functionFragment.inputs.map((el, i) => ({
             type: el.type,
             value: parameters[i],
         })), from);
-        let signedTransaction = await signTransaction(transaction.transaction);
-        return this.broadcastTransaction(signedTransaction);
+        let txId = await sendTransaction(transaction.transaction, this.provider);
+        return txId;
     }
-    async fastCheckTransactionResult(txID) {
+    async fastCheckTransactionResult(txId) {
         return await (0, helper_1.retry)(async () => {
-            var _a;
-            const transaction = (await this.provider.trx.getTransaction(txID));
-            if (!((_a = transaction.ret) === null || _a === void 0 ? void 0 : _a.length)) {
+            const transaction = (await this.provider.trx.getTransaction(txId));
+            if (!transaction.ret?.length) {
                 await (0, wait_1.default)(1000);
-                return this.fastCheckTransactionResult(txID);
+                return this.fastCheckTransactionResult(txId);
             }
             if (!transaction.ret.every((result) => result.contractRet === types_1.CONTRACT_SUCCESS)) {
                 throw new errors_1.TransactionReceiptError(transaction.ret
                     .filter((el) => el.contractRet !== types_1.CONTRACT_SUCCESS)
                     .map((el) => el.contractRet)
-                    .join(","), { id: transaction.txID });
+                    .join(","), { txId: transaction.txID });
             }
-            return transaction.txID;
+            return { txId: transaction.txID };
         }, 10, 1000);
     }
-    async finalCheckTransactionResult(txID) {
-        const output = await this.provider.trx.getTransactionInfo(txID);
+    async finalCheckTransactionResult(txId) {
+        const output = await this.provider.trx.getTransactionInfo(txId);
         if (!Object.keys(output).length) {
             await (0, wait_1.default)(3000);
-            return this.finalCheckTransactionResult(txID);
+            return this.finalCheckTransactionResult(txId);
         }
         const transactionInfo = {
             blockNumber: new bignumber_js_1.default(output.blockNumber),
-            id: output.id,
+            txId: output.id,
         };
         if (output.result && output.result === "FAILED") {
             const errMsg = this.provider.toUtf8(output.resMessage);

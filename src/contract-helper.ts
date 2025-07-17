@@ -6,20 +6,23 @@ import {
   ContractQuery,
   ContractQueryTrigger,
   ContractQueryCallback,
-  SignTransaction,
+  SendTransaction,
+  SimpleTransactionResult,
+  TrxFormatValue,
+  EthFormatValue,
 } from "./types";
-import { executePromise, mapSeries, retry } from "./helper";
+import { runWithCallback, map, retry } from "./helper";
 import debounce, { DebouncedFunction } from "debounce";
 import { v4 as uuidv4 } from "uuid";
 import { ContractHelperOptions } from "./types";
-import { ContractHelperBase } from "./contract-helper-base";
 import { TronContractHelper } from "./tron";
 import { EthContractHelper } from "./eth";
+import { Provider as EthProvider } from "ethers";
 
-export class ContractHelper {
-  private helper: ContractHelperBase;
-  private pendingQueries: ContractQuery[] = [];
-  private lazyExec: DebouncedFunction<() => any>;
+export class ContractHelper<Provider extends TronWeb | EthProvider> {
+  private helper: TronContractHelper<TronWeb> | EthContractHelper<EthProvider>;
+  private pendingQueries: ContractQuery<Provider>[] = [];
+  private debounceExecuteLazyCalls: DebouncedFunction<() => any>;
   private multicallMaxPendingLength: number;
 
   /**
@@ -28,20 +31,34 @@ export class ContractHelper {
    *  multicallV2Address: multicallv2 address;
    *  multicallLazyQueryTimeout?: maximum wait time for executing the pending call queue.
    *  multicallMaxPendingLength?: maximum length for the pending call queue.
+   *  simulateBeforeSend?: simulate the transactions(use eth_call) before send then transaction.Only support eth.
+   *  formatValue?: {
+   *    address?: "base58"(only tron) | "checksum" | "hex"; // default base58 in tron and checksum in eth
+   *    uint?: "bigint" | "bignumber"; // default bignumber
+   *  }
    * }
    */
-  constructor(options: ContractHelperOptions) {
+  constructor(options: ContractHelperOptions<Provider>) {
     const provider = options.provider;
     const multicallAddr = options.multicallV2Address;
     const multicallLazyQueryTimeout = options.multicallLazyQueryTimeout ?? 1000;
-    this.multicallMaxPendingLength = options.multicallMaxPendingLength ?? 10;
+    this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
     this.helper =
       provider instanceof TronWeb
-        ? new TronContractHelper(multicallAddr, provider)
-        : new EthContractHelper(multicallAddr, provider);
+        ? new TronContractHelper<TronWeb>(
+            multicallAddr,
+            provider,
+            options.formatValue as TrxFormatValue
+          )
+        : new EthContractHelper<EthProvider>(
+            multicallAddr,
+            provider,
+            options.simulateBeforeSend ?? true,
+            options.formatValue as EthFormatValue
+          );
     this.addLazyCall = this.addLazyCall.bind(this);
     this.addPendingQuery = this.addPendingQuery.bind(this);
-    this.lazyExec = debounce(() => {
+    this.debounceExecuteLazyCalls = debounce(() => {
       return this.executeLazyCalls();
     }, multicallLazyQueryTimeout);
   }
@@ -49,7 +66,7 @@ export class ContractHelper {
   /**
    * @deprecated use call instead.
    */
-  async getContractValue<T>(contractCallArgs: ContractCallArgs) {
+  async getContractValue<T>(contractCallArgs: ContractCallArgs<Provider>) {
     return this.call<T>(contractCallArgs);
   }
 
@@ -63,39 +80,53 @@ export class ContractHelper {
    *  parameters: method parameters.
    * }
    */
-  async call<T>(contractCallArgs: ContractCallArgs) {
-    return this.helper.call<T>(contractCallArgs);
+  async call<T>(contractCallArgs: ContractCallArgs<Provider>) {
+    return this.helper.call<T>(
+      // @ts-ignore
+      contractCallArgs
+    );
   }
 
   /**
    *@deprecated use multicall instead.
    */
-  getMultiContractValues<T>(multicallArgs: MultiCallArgs[]) {
+  getMultiContractValues<T>(multicallArgs: MultiCallArgs<Provider>[]) {
     return this.multicall(multicallArgs);
   }
 
   /**
    * Use Multicall v2 to query with multiple arguments
    */
-  multicall<T>(multicallArgs: MultiCallArgs[]) {
+  multicall<T>(multicallArgs: MultiCallArgs<Provider>[]) {
     return this.helper.multicall<T>(multicallArgs);
   }
 
   /**
    * Sign the transaction and send it to the network.
    * @param from signer address
-   * @param signTransaction sign transaction function.
+   * @param sendTransaction sign transaction function.
    * @param contractCall contract call arguments.
    * @param options execute callback.
    */
   async send(
     from: string,
-    signTransaction: SignTransaction,
-    contractCall: ContractCallArgs,
-    options?: TransactionOption
+    sendTransaction: SendTransaction<Provider>,
+    contractCall: ContractCallArgs<Provider>
   ) {
-    const txID = await this.helper.send(from, signTransaction, contractCall);
-    return await this.helper.checkTransactionResult(txID, options);
+    const txId = await this.helper.send(
+      from,
+      // @ts-ignore
+      sendTransaction,
+      contractCall
+    );
+    return txId;
+  }
+
+  async checkTransactionResult(
+    txID: string,
+    options?: TransactionOption
+  ): Promise<SimpleTransactionResult> {
+    return this.helper.checkTransactionResult(txID, options);
   }
 
   /**
@@ -115,7 +146,7 @@ export class ContractHelper {
   /**
    * Insert a contract call to the pending call queue, and wait for the pending calls to be executed in a multicall request.
    */
-  lazyCall<T>(query: ContractCallArgs) {
+  lazyCall<T>(query: ContractCallArgs<Provider>) {
     const key = uuidv4();
     return new Promise<T>((resolve, reject) => {
       this.addLazyCall<T>({
@@ -123,8 +154,12 @@ export class ContractHelper {
           key,
           ...query,
         },
-        callback: (value) => {
-          resolve(value);
+        callback: {
+          success: async (value: T) => {
+            resolve(value);
+            return value;
+          },
+          error: reject,
         },
       });
     });
@@ -133,7 +168,7 @@ export class ContractHelper {
   /**
    * @deprecated use lazyCall instead.
    */
-  queryByBundle<T>(query: ContractCallArgs) {
+  queryByBundle<T>(query: ContractCallArgs<Provider>) {
     return this.lazyCall(query);
   }
 
@@ -141,9 +176,9 @@ export class ContractHelper {
    * Insert a contract call to the pending call queue.
    */
   addLazyCall<T = any>(
-    query: ContractQuery<T>,
+    query: ContractQuery<Provider, T>,
     trigger?: ContractQueryTrigger
-  ): Promise<T> {
+  ) {
     this.pendingQueries.push(query);
     // If callback is undefined, it will be call instant.
     if (
@@ -151,9 +186,9 @@ export class ContractHelper {
       trigger ||
       this.lazyCallsLength >= this.multicallMaxPendingLength
     ) {
-      return this.executeLazyCalls<T>();
+      this.executeLazyCalls<T>();
     } else {
-      return this.lazyExec();
+      this.debounceExecuteLazyCalls();
     }
   }
 
@@ -161,10 +196,10 @@ export class ContractHelper {
    * @deprecated use addLazyCall instead.
    */
   addPendingQuery<T = any>(
-    query: ContractQuery<T>,
+    query: ContractQuery<Provider, T>,
     trigger?: ContractQueryTrigger
-  ): Promise<T> {
-    return this.addLazyCall(query, trigger);
+  ) {
+    this.addLazyCall(query, trigger);
   }
 
   /**
@@ -179,29 +214,57 @@ export class ContractHelper {
     const cb = queries.reduce((prev, cur) => {
       prev[cur.query.key] = cur.callback;
       return prev;
-    }, {} as Record<string, ContractQuery["callback"]>);
-    return executePromise(async () => {
-      // request max 5 times for multicall query
-      const values = await retry<any>(
-        () => this.multicall(queries.map((el) => el.query)),
-        5,
-        1000
-      );
-      const keys = Object.keys(values);
-      const cbResult = await mapSeries(keys, async (key) => {
-        const value = values[key];
-        if (cb[key]) {
-          // request max 5 times for every callback
-          return await retry(async () => await cb[key]!(value), 5, 1000);
-        } else {
-          return value;
+    }, {} as Record<string, ContractQuery<Provider>["callback"]>);
+    return runWithCallback(
+      async () => {
+        // request max 5 times for multicall query
+        const values = await retry<any>(
+          () => this.multicall(queries.map((el) => el.query)),
+          5,
+          1000
+        );
+        const keys = Object.keys(values);
+        const cbResult = await map(
+          keys,
+          async (key) => {
+            const value = values[key];
+            if (cb[key]) {
+              // request max 5 times for every callback
+              return await retry(async () => cb[key]?.success(value), 5, 1000);
+            } else {
+              return value;
+            }
+          },
+          {
+            concurrency: keys.length,
+            stopOnError: false,
+          }
+        );
+        if (cbResult.length === 1) {
+          return cbResult[0] as T;
         }
-      });
-      if (cbResult.length === 1) {
-        return cbResult[0] as T;
+        return cbResult as T;
+      },
+      {
+        success: callback?.success,
+        error(err) {
+          const keys = Object.keys(cb);
+          map(
+            keys,
+            async (key) => {
+              if (cb[key]) {
+                cb[key]?.error && cb[key].error(err);
+              }
+            },
+            {
+              concurrency: keys.length,
+              stopOnError: false,
+            }
+          );
+          callback?.error && callback.error(err);
+        },
       }
-      return cbResult as T;
-    }, callback);
+    );
   }
 
   /**

@@ -1,8 +1,10 @@
 import { TronWeb } from "tronweb";
 import {
   BytesLike,
+  dataSlice,
   FunctionFragment,
   getAddress,
+  id,
   Interface,
   InterfaceAbi,
   isAddress,
@@ -14,9 +16,9 @@ import {
   ContractCallArgs,
   ContractCallResults,
   ContractCallReturnContext,
+  EthProvider,
   MultiCallArgs,
 } from "./types";
-import { keccak256, toHex } from "viem";
 import { deepClone } from "./helper";
 import {
   ABIFunctionNotProvidedError,
@@ -37,7 +39,7 @@ export function formatBase58Address(address: string) {
 /**
  * Convert a Tron hex address or base58 address to a hex address.
  */
-const formatHexAddress = function (address: string) {
+export const formatHexAddress = function (address: string) {
   if (!TronWeb.isAddress(address)) {
     return address;
   }
@@ -49,12 +51,12 @@ const formatHexAddress = function (address: string) {
  */
 export const formatToEthAddress = function (address: string) {
   if (TronWeb.isAddress(address)) {
-    return "0x" + formatHexAddress(address).slice(2).toLowerCase();
+    return getAddress("0x" + formatHexAddress(address).slice(2));
   }
   if (isAddress(address)) {
     return getAddress(address);
   }
-  throw new Error(`${address} is invalid address.`);
+  return address;
 };
 
 const getMethodConfig = function (
@@ -73,7 +75,7 @@ const getMethodConfig = function (
     throw new ABIFunctionNotProvidedError({ address, method });
   }
   const signature = fn.format("minimal");
-  const selector = keccak256(toHex(signature)).slice(0, 10);
+  const selector = dataSlice(id(signature), 0, 4);
   return {
     selector, // "0xa9059cbb"
     signature, // "transfer(address,uint256)"
@@ -82,7 +84,9 @@ const getMethodConfig = function (
   };
 };
 
-export function transformContractCallArgs(contractCallArgs: ContractCallArgs) {
+export function transformContractCallArgs<
+  Provider extends TronWeb | EthProvider
+>(contractCallArgs: ContractCallArgs<Provider>, network: "tron" | "eth") {
   let { address, abi, method } = contractCallArgs;
   if (!address) {
     throw new ContractAddressNotProvidedError();
@@ -98,7 +102,15 @@ export function transformContractCallArgs(contractCallArgs: ContractCallArgs) {
     abi = [fragment];
   }
   const methodConfig = getMethodConfig(address, abi, method);
-  return { ...contractCallArgs, abi: abi!, method: methodConfig };
+  return {
+    ...contractCallArgs,
+    abi: abi!,
+    method: methodConfig,
+    address:
+      network === "tron"
+        ? formatBase58Address(address)
+        : formatToEthAddress(address),
+  };
 }
 
 export function findFragmentFromAbi<T>(
@@ -108,23 +120,31 @@ export function findFragmentFromAbi<T>(
   const { methodName } = call;
   const targetName = methodName.trim();
   const interf = new Interface(abi);
-  return interf.getFunction(targetName);
+  try {
+    return interf.getFunction(targetName);
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Build aggregate call context
  * @param multiCallArgs The contract call contexts
  */
-export function buildAggregateCall(
-  multiCallArgs: MultiCallArgs[],
+export function buildAggregateCall<Provider extends TronWeb | EthProvider>(
+  multiCallArgs: MultiCallArgs<Provider>[],
   encodeFunctionData: {
     (fragment: FunctionFragment, values: any[]): string;
-  }
+  },
+  network: "tron" | "eth"
 ) {
   const aggregateCalls: AggregateCall[] = [];
 
   for (let i = 0; i < multiCallArgs.length; i++) {
-    const transformedArgs = transformContractCallArgs(multiCallArgs[i]);
+    const transformedArgs = transformContractCallArgs(
+      multiCallArgs[i],
+      network
+    );
     const contractCall = {
       key: multiCallArgs[i].key,
       address: transformedArgs.address,
@@ -154,13 +174,17 @@ export function buildAggregateCall(
   return aggregateCalls;
 }
 
-export function buildUpAggregateResponse<T>(
-  multiCallArgs: MultiCallArgs[],
+export function buildUpAggregateResponse<
+  Provider extends TronWeb | EthProvider,
+  T
+>(
+  multiCallArgs: MultiCallArgs<Provider>[],
   response: AggregateContractResponse,
   decodeFunctionData: { (fragment: FunctionFragment, data: BytesLike): any[] },
   handleContractValue: {
     <T>(value: any, functionFragment: FunctionFragment): T;
-  }
+  },
+  network: "tron" | "eth"
 ) {
   const returnObject: ContractCallResults = {
     results: {},
@@ -169,7 +193,10 @@ export function buildUpAggregateResponse<T>(
 
   for (let i = 0; i < response.returnData.length; i++) {
     const returnData = response.returnData[i];
-    const transformedArgs = transformContractCallArgs(multiCallArgs[i]);
+    const transformedArgs = transformContractCallArgs(
+      multiCallArgs[i],
+      network
+    );
     const contractCall = {
       key: multiCallArgs[i].key,
       address: transformedArgs.address,

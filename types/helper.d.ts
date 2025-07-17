@@ -1,3 +1,4 @@
+export { default as map, mapSkip as mapSkip, Mapper } from "./p-map";
 /**
  * Deep clone a object
  * @param object The object
@@ -13,7 +14,6 @@ export interface PromiseCallback<T> {
         (err: any): void;
     };
 }
-export declare function executePromise<T>(fn: RetryFunction<T>, callback?: PromiseCallback<T>): Promise<T>;
-export declare function executePromiseAndCallback<T>(p: Promise<T>, callback: PromiseCallback<T>): Promise<T>;
-export declare function mapSeries<T, R>(array: T[], iterator: (item: T, i: number) => Promise<R>): Promise<R[]>;
+export declare function runWithCallback<T>(fn: RetryFunction<T>, callback?: PromiseCallback<T>): Promise<T>;
+export declare function runPromiseWithCallback<T>(p: Promise<T>, callback: PromiseCallback<T>): Promise<T>;
 //# sourceMappingURL=helper.d.ts.map

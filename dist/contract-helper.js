@@ -11,28 +11,35 @@ const uuid_1 = require("uuid");
 const tron_1 = require("./tron");
 const eth_1 = require("./eth");
 class ContractHelper {
+    helper;
+    pendingQueries = [];
+    debounceExecuteLazyCalls;
+    multicallMaxPendingLength;
     /**
      * @param options {
      *  provider: TronWeb | Provider(ethers.js);
      *  multicallV2Address: multicallv2 address;
      *  multicallLazyQueryTimeout?: maximum wait time for executing the pending call queue.
      *  multicallMaxPendingLength?: maximum length for the pending call queue.
+     *  simulateBeforeSend?: simulate the transactions(use eth_call) before send then transaction.Only support eth.
+     *  formatValue?: {
+     *    address?: "base58"(only tron) | "checksum" | "hex"; // default base58 in tron and checksum in eth
+     *    uint?: "bigint" | "bignumber"; // default bignumber
+     *  }
      * }
      */
     constructor(options) {
-        var _a, _b;
-        this.pendingQueries = [];
         const provider = options.provider;
         const multicallAddr = options.multicallV2Address;
-        const multicallLazyQueryTimeout = (_a = options.multicallLazyQueryTimeout) !== null && _a !== void 0 ? _a : 1000;
-        this.multicallMaxPendingLength = (_b = options.multicallMaxPendingLength) !== null && _b !== void 0 ? _b : 10;
+        const multicallLazyQueryTimeout = options.multicallLazyQueryTimeout ?? 1000;
+        this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
         this.helper =
             provider instanceof tronweb_1.TronWeb
-                ? new tron_1.TronContractHelper(multicallAddr, provider)
-                : new eth_1.EthContractHelper(multicallAddr, provider);
+                ? new tron_1.TronContractHelper(multicallAddr, provider, options.formatValue)
+                : new eth_1.EthContractHelper(multicallAddr, provider, options.simulateBeforeSend ?? true, options.formatValue);
         this.addLazyCall = this.addLazyCall.bind(this);
         this.addPendingQuery = this.addPendingQuery.bind(this);
-        this.lazyExec = (0, debounce_1.default)(() => {
+        this.debounceExecuteLazyCalls = (0, debounce_1.default)(() => {
             return this.executeLazyCalls();
         }, multicallLazyQueryTimeout);
     }
@@ -53,7 +60,9 @@ class ContractHelper {
      * }
      */
     async call(contractCallArgs) {
-        return this.helper.call(contractCallArgs);
+        return this.helper.call(
+        // @ts-ignore
+        contractCallArgs);
     }
     /**
      *@deprecated use multicall instead.
@@ -70,13 +79,18 @@ class ContractHelper {
     /**
      * Sign the transaction and send it to the network.
      * @param from signer address
-     * @param signTransaction sign transaction function.
+     * @param sendTransaction sign transaction function.
      * @param contractCall contract call arguments.
      * @param options execute callback.
      */
-    async send(from, signTransaction, contractCall, options) {
-        const txID = await this.helper.send(from, signTransaction, contractCall);
-        return await this.helper.checkTransactionResult(txID, options);
+    async send(from, sendTransaction, contractCall) {
+        const txId = await this.helper.send(from, 
+        // @ts-ignore
+        sendTransaction, contractCall);
+        return txId;
+    }
+    async checkTransactionResult(txID, options) {
+        return this.helper.checkTransactionResult(txID, options);
     }
     /**
      * Return the pending call length.
@@ -97,9 +111,16 @@ class ContractHelper {
         const key = (0, uuid_1.v4)();
         return new Promise((resolve, reject) => {
             this.addLazyCall({
-                query: Object.assign({ key }, query),
-                callback: (value) => {
-                    resolve(value);
+                query: {
+                    key,
+                    ...query,
+                },
+                callback: {
+                    success: async (value) => {
+                        resolve(value);
+                        return value;
+                    },
+                    error: reject,
                 },
             });
         });
@@ -119,17 +140,17 @@ class ContractHelper {
         if (!query.callback ||
             trigger ||
             this.lazyCallsLength >= this.multicallMaxPendingLength) {
-            return this.executeLazyCalls();
+            this.executeLazyCalls();
         }
         else {
-            return this.lazyExec();
+            this.debounceExecuteLazyCalls();
         }
     }
     /**
      * @deprecated use addLazyCall instead.
      */
     addPendingQuery(query, trigger) {
-        return this.addLazyCall(query, trigger);
+        this.addLazyCall(query, trigger);
     }
     /**
      * Execute the pending call queue.
@@ -144,25 +165,42 @@ class ContractHelper {
             prev[cur.query.key] = cur.callback;
             return prev;
         }, {});
-        return (0, helper_1.executePromise)(async () => {
+        return (0, helper_1.runWithCallback)(async () => {
             // request max 5 times for multicall query
             const values = await (0, helper_1.retry)(() => this.multicall(queries.map((el) => el.query)), 5, 1000);
             const keys = Object.keys(values);
-            const cbResult = await (0, helper_1.mapSeries)(keys, async (key) => {
+            const cbResult = await (0, helper_1.map)(keys, async (key) => {
                 const value = values[key];
                 if (cb[key]) {
                     // request max 5 times for every callback
-                    return await (0, helper_1.retry)(async () => await cb[key](value), 5, 1000);
+                    return await (0, helper_1.retry)(async () => cb[key]?.success(value), 5, 1000);
                 }
                 else {
                     return value;
                 }
+            }, {
+                concurrency: keys.length,
+                stopOnError: false,
             });
             if (cbResult.length === 1) {
                 return cbResult[0];
             }
             return cbResult;
-        }, callback);
+        }, {
+            success: callback?.success,
+            error(err) {
+                const keys = Object.keys(cb);
+                (0, helper_1.map)(keys, async (key) => {
+                    if (cb[key]) {
+                        cb[key]?.error && cb[key].error(err);
+                    }
+                }, {
+                    concurrency: keys.length,
+                    stopOnError: false,
+                });
+                callback?.error && callback.error(err);
+            },
+        });
     }
     /**
      * @deprecated use executeLazyCalls instead.

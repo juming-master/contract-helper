@@ -1,22 +1,21 @@
-import { InterfaceAbi, TransactionLike, Provider } from "ethers";
+import { InterfaceAbi, TransactionLike, Provider as EthProvider } from "ethers";
 import { BigNumber, TronWeb } from "tronweb";
 import { ContractParamter, TransactionContract, TriggerSmartContractOptions } from "tronweb/lib/esm/types";
 import { PromiseCallback } from "./helper";
-import { TransactionRequest as EthTransactionRequest, TransactionResponse as EthTransactionResponse } from "ethers";
-import { SignedTransaction as TronTransactionResponse, Transaction as TronTransactionRequest } from "tronweb/lib/esm/types";
-export { TransactionRequest as EthTransactionRequest, TransactionResponse as EthTransactionResponse, } from "ethers";
+import { TransactionRequest as EthTransactionRequest } from "ethers";
+import { Transaction as TronTransactionRequest } from "tronweb/lib/esm/types";
+export { TransactionRequest as EthTransactionRequest, TransactionResponse as EthTransactionResponse, Provider as EthProvider, } from "ethers";
 export { Transaction as TronTransactionRequest, SignedTransaction as TronTransactionResponse, } from "tronweb/lib/esm/types";
-export interface ContractCallArgs {
+export type TronContractCallOptions = TriggerSmartContractOptions;
+export type EthContractCallOptions = Omit<TransactionLike, "to" | "from" | "nonce" | "data" | "chainId" | "type">;
+export interface ContractCallArgs<Provider extends TronWeb | EthProvider> {
     address: string;
     abi?: InterfaceAbi;
     method: string;
     parameters?: Array<any>;
-    options?: {
-        trx?: TriggerSmartContractOptions;
-        eth?: Omit<TransactionLike, "to" | "from" | "nonce" | "data" | "chainId" | "type">;
-    };
+    options?: Provider extends TronWeb ? TronContractCallOptions : EthContractCallOptions;
 }
-export type MultiCallArgs = Omit<ContractCallArgs, "methodOverrides"> & {
+export type MultiCallArgs<Provider extends TronWeb | EthProvider> = Omit<ContractCallArgs<Provider>, "options"> & {
     key: string;
 };
 export interface Call {
@@ -90,11 +89,13 @@ export interface AggregateResponse {
         methodResult: any;
     }>;
 }
-export type SignTransaction = {
-    (tx: EthTransactionRequest): Promise<EthTransactionResponse>;
-} | {
-    (tx: TronTransactionRequest): Promise<TronTransactionResponse>;
-};
+export interface EthSendTransaction {
+    (tx: EthTransactionRequest, provider: EthProvider): Promise<string>;
+}
+export interface TronSendTransaction {
+    (tx: TronTransactionRequest, provider: TronWeb): Promise<string>;
+}
+export type SendTransaction<Provider extends TronWeb | EthProvider> = Provider extends TronWeb ? TronSendTransaction : EthSendTransaction;
 export declare const CONTRACT_SUCCESS = "SUCCESS";
 export interface FastTransactionResult<T = ContractParamter> {
     txID: string;
@@ -115,7 +116,7 @@ export interface FastTransactionResult<T = ContractParamter> {
 }
 export interface SimpleTransactionResult {
     blockNumber?: BigNumber;
-    id: string;
+    txId: string;
 }
 export declare enum CheckTransactionType {
     Fast = "fast",
@@ -127,18 +128,29 @@ export type TransactionOption = {
     error?: (error: any) => void;
 };
 export interface ContractCallback<T> {
-    (value: T): Promise<void> | void;
+    success: (value: T) => Promise<any> | void;
+    error?: (error: any) => void;
 }
-export interface ContractQuery<T = any> {
-    query: MultiCallArgs;
+export interface ContractQuery<Provider extends TronWeb | EthProvider, T = any> {
+    query: MultiCallArgs<Provider>;
     callback?: ContractCallback<T>;
 }
 export type ContractQueryCallback<T = any> = PromiseCallback<T>;
 export type ContractQueryTrigger<T = any> = ContractQueryCallback<T> | boolean;
-export type ContractHelperOptions = {
-    provider: TronWeb | Provider;
+export interface TrxFormatValue {
+    address?: "base58" | "checksum" | "hex";
+    uint?: "bigint" | "bignumber";
+}
+export interface EthFormatValue {
+    address?: "checksum" | "hex";
+    uint?: "bigint" | "bignumber";
+}
+export type ContractHelperOptions<Provider extends TronWeb | EthProvider> = {
+    provider: Provider;
     multicallV2Address: string;
     multicallLazyQueryTimeout?: number;
-    multicallMaxPendingLength?: number;
+    multicallMaxLazyCallsLength?: number;
+    simulateBeforeSend?: boolean;
+    formatValue?: Provider extends TronWeb ? TrxFormatValue : EthFormatValue;
 };
 //# sourceMappingURL=types.d.ts.map

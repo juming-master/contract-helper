@@ -20,16 +20,17 @@ class ABIFunctionNotProvidedError extends Error {
 }
 exports.ABIFunctionNotProvidedError = ABIFunctionNotProvidedError;
 class BroadcastTronTransactionError extends Error {
+    code = 0;
+    error = "";
+    transaction = "";
+    output = null;
     constructor(message) {
         super(message);
-        this.code = 0;
-        this.error = "";
-        this.transaction = "";
-        this.output = null;
     }
 }
 exports.BroadcastTronTransactionError = BroadcastTronTransactionError;
 class TransactionReceiptError extends Error {
+    transactionInfo;
     constructor(message, transactionInfo) {
         super(message);
         this.transactionInfo = transactionInfo;

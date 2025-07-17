@@ -1,10 +1,11 @@
 import { TronWeb } from "tronweb";
-import { ContractCallArgs, MultiCallArgs, SimpleTransactionResult } from "./types";
-import { SignedTransaction, Transaction } from "tronweb/lib/esm/types";
+import { ContractCallArgs, MultiCallArgs, SendTransaction, SimpleTransactionResult, TrxFormatValue } from "./types";
+import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
 import { ContractHelperBase } from "./contract-helper-base";
-export declare class TronContractHelper extends ContractHelperBase {
+export declare class TronContractHelper<Provider extends TronWeb> extends ContractHelperBase<Provider> {
     private provider;
-    constructor(multicallContractAddress: string, provider: TronWeb);
+    private formatValueType;
+    constructor(multicallContractAddress: string, provider: Provider, formatValue: TrxFormatValue);
     private formatToEthAddress;
     /**
      * Map call contract to match contract format
@@ -19,13 +20,11 @@ export declare class TronContractHelper extends ContractHelperBase {
      * Execute the multicall contract call
      * @param calls The calls
      */
-    multicall<T>(calls: MultiCallArgs[]): Promise<T>;
-    call<T>(contractCallArgs: ContractCallArgs): Promise<T>;
-    private broadcastTransaction;
-    send(from: string, signTransaction: {
-        (tx: Transaction): Promise<SignedTransaction>;
-    }, contractOption: ContractCallArgs): Promise<string>;
-    fastCheckTransactionResult(txID: string): Promise<string>;
-    finalCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
+    multicall<T>(calls: MultiCallArgs<Provider>[]): Promise<T>;
+    call<T>(contractCallArgs: ContractCallArgs<Provider>): Promise<T>;
+    static broadcastTransaction(provider: TronWeb, signedTransaction: SignedTransaction<ContractParamter>): Promise<string>;
+    send(from: string, sendTransaction: SendTransaction<Provider>, contractOption: ContractCallArgs<Provider>): Promise<string>;
+    fastCheckTransactionResult(txId: string): any;
+    finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;
 }
 //# sourceMappingURL=tron.d.ts.map

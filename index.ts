@@ -3,7 +3,7 @@ import {
   CheckTransactionType,
   ContractHelper,
   TronTransactionRequest,
-} from "../src/index";
+} from "./src/index";
 import {
   Adapter,
   AdapterName,

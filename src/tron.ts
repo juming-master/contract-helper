@@ -6,19 +6,18 @@ import {
   ContractCallArgs,
   FastTransactionResult,
   MultiCallArgs,
+  SendTransaction,
   SimpleTransactionResult,
+  TrxFormatValue,
 } from "./types";
 import {
   buildAggregateCall,
   buildUpAggregateResponse,
   formatBase58Address,
+  formatHexAddress,
   transformContractCallArgs,
 } from "./contract-utils";
-import {
-  ContractParamter,
-  SignedTransaction,
-  Transaction,
-} from "tronweb/lib/esm/types";
+import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
 import { ContractHelperBase } from "./contract-helper-base";
 import wait from "wait";
 import { retry } from "./helper";
@@ -259,12 +258,20 @@ const ABI = [
   },
 ];
 
-export class TronContractHelper extends ContractHelperBase {
+export class TronContractHelper<
+  Provider extends TronWeb
+> extends ContractHelperBase<Provider> {
   private provider: TronWeb;
+  private formatValueType: TrxFormatValue;
 
-  constructor(multicallContractAddress: string, provider: TronWeb) {
+  constructor(
+    multicallContractAddress: string,
+    provider: Provider,
+    formatValue: TrxFormatValue
+  ) {
     super(multicallContractAddress);
     this.provider = provider;
+    this.formatValueType = formatValue;
   }
 
   private formatToEthAddress(address: string) {
@@ -287,24 +294,28 @@ export class TronContractHelper extends ContractHelperBase {
     ]);
   }
 
-  private buildAggregateCall(multiCallArgs: MultiCallArgs[]) {
-    return buildAggregateCall(multiCallArgs, (fragment, values) => {
-      const funcABI = JSON.parse(fragment.format("json"));
-      const params = this.provider.utils.abi.encodeParamsV2ByABI(
-        funcABI,
-        values
-      );
-      const selector = fragment.selector;
-      const encodedData = `${selector}${params.slice(2)}`;
-      return encodedData;
-    });
+  private buildAggregateCall(multiCallArgs: MultiCallArgs<Provider>[]) {
+    return buildAggregateCall<Provider>(
+      multiCallArgs,
+      (fragment, values) => {
+        const funcABI = JSON.parse(fragment.format("json"));
+        const params = this.provider.utils.abi.encodeParamsV2ByABI(
+          funcABI,
+          values
+        );
+        const selector = fragment.selector;
+        const encodedData = `${selector}${params.slice(2)}`;
+        return encodedData;
+      },
+      "tron"
+    );
   }
 
   private buildUpAggregateResponse<T>(
-    multiCallArgs: MultiCallArgs[],
+    multiCallArgs: MultiCallArgs<Provider>[],
     response: AggregateContractResponse
   ) {
-    return buildUpAggregateResponse<T>(
+    return buildUpAggregateResponse<Provider, T>(
       multiCallArgs,
       response,
       (fragment, data) => {
@@ -313,7 +324,8 @@ export class TronContractHelper extends ContractHelperBase {
       },
       (value, fragment) => {
         return this.handleContractValue(value, fragment);
-      }
+      },
+      "tron"
     );
   }
 
@@ -324,10 +336,15 @@ export class TronContractHelper extends ContractHelperBase {
         return value.map((el: any) => this.formatValue(el, itemType));
       case type.startsWith("uint"):
       case type.startsWith("int"):
-        // value is BigInt type.
-        return new BigNumber(value.toString());
+        return this.formatValueType?.uint === "bigint"
+          ? BigInt(value.toString())
+          : new BigNumber(value.toString());
       case type === "address":
-        return formatBase58Address(value);
+        return this.formatValueType?.address === "checksum"
+          ? TronWeb.address.toChecksumAddress(value)
+          : this.formatValueType?.address === "hex"
+          ? TronWeb.address.toHex(value)
+          : formatBase58Address(value);
       default:
         return value;
     }
@@ -341,8 +358,9 @@ export class TronContractHelper extends ContractHelperBase {
     if (outputs.length === 1 && !outputs[0].name) {
       return this.formatValue(value, outputs[0].type);
     }
-    const result: Record<string, any> = {};
-    for (let output of outputs) {
+    const result: Array<any> = [];
+    for (let [index, output] of outputs.entries()) {
+      result[index] = this.formatValue(value[index], output.type);
       if (output.name) {
         result[output.name] = this.formatValue(value[output.name], output.type);
       }
@@ -354,7 +372,7 @@ export class TronContractHelper extends ContractHelperBase {
    * Execute the multicall contract call
    * @param calls The calls
    */
-  public async multicall<T>(calls: MultiCallArgs[]) {
+  public async multicall<T>(calls: MultiCallArgs<Provider>[]) {
     const provider = this.provider;
     const address = this.multicallAddress;
     const contract = provider.contract(ABI, address);
@@ -365,30 +383,29 @@ export class TronContractHelper extends ContractHelperBase {
     return this.buildUpAggregateResponse<T>(calls, contractResponse);
   }
 
-  public async call<T>(contractCallArgs: ContractCallArgs) {
+  public async call<T>(contractCallArgs: ContractCallArgs<Provider>) {
     const {
       address,
       abi,
       method,
       parameters = [],
-    } = transformContractCallArgs(contractCallArgs);
+    } = transformContractCallArgs(contractCallArgs, "tron");
     const contract = this.provider.contract(abi as any, address);
     const rawResult = await contract[method.name](...parameters).call();
     const result = this.handleContractValue(rawResult, method.fragment);
     return result as T;
   }
 
-  private async broadcastTransaction(
+  static async broadcastTransaction(
+    provider: TronWeb,
     signedTransaction: SignedTransaction<ContractParamter>
   ) {
-    const broadcast = await this.provider.trx.sendRawTransaction(
-      signedTransaction
-    );
+    const broadcast = await provider.trx.sendRawTransaction(signedTransaction);
     if (broadcast.code) {
       const err = new BroadcastTronTransactionError(broadcast.message);
       err.code = broadcast.code;
       if (broadcast.message) {
-        err.message = this.provider.toUtf8(broadcast.message);
+        err.message = provider.toUtf8(broadcast.message);
       }
       const error = new BroadcastTronTransactionError(err.message);
       error.code = broadcast.code;
@@ -399,40 +416,40 @@ export class TronContractHelper extends ContractHelperBase {
 
   async send(
     from: string,
-    signTransaction: { (tx: Transaction): Promise<SignedTransaction> },
-    contractOption: ContractCallArgs
+    sendTransaction: SendTransaction<Provider>,
+    contractOption: ContractCallArgs<Provider>
   ) {
     const {
       address,
       method,
       options,
       parameters = [],
-    } = transformContractCallArgs(contractOption);
+    } = transformContractCallArgs(contractOption, "tron");
     const functionFragment = method.fragment;
     const provider = this.provider;
     const transaction = await provider.transactionBuilder.triggerSmartContract(
       address,
       functionFragment.format("sighash"),
-      options?.trx ? options?.trx : {},
+      options ? options : {},
       functionFragment.inputs.map((el, i) => ({
         type: el.type,
         value: parameters[i],
       })),
       from
     );
-    let signedTransaction = await signTransaction(transaction.transaction);
-    return this.broadcastTransaction(signedTransaction);
+    let txId = await sendTransaction(transaction.transaction, this.provider);
+    return txId;
   }
 
-  async fastCheckTransactionResult(txID: string): Promise<string> {
+  async fastCheckTransactionResult(txId: string) {
     return await retry(
       async () => {
         const transaction = (await this.provider.trx.getTransaction(
-          txID
+          txId
         )) as any as FastTransactionResult;
         if (!transaction.ret?.length) {
           await wait(1000);
-          return this.fastCheckTransactionResult(txID);
+          return this.fastCheckTransactionResult(txId);
         }
         if (
           !transaction.ret.every(
@@ -444,10 +461,10 @@ export class TronContractHelper extends ContractHelperBase {
               .filter((el) => el.contractRet !== CONTRACT_SUCCESS)
               .map((el) => el.contractRet)
               .join(","),
-            { id: transaction.txID }
+            { txId: transaction.txID }
           );
         }
-        return transaction.txID;
+        return { txId: transaction.txID };
       },
       10,
       1000
@@ -455,16 +472,16 @@ export class TronContractHelper extends ContractHelperBase {
   }
 
   async finalCheckTransactionResult(
-    txID: string
+    txId: string
   ): Promise<SimpleTransactionResult> {
-    const output = await this.provider.trx.getTransactionInfo(txID);
+    const output = await this.provider.trx.getTransactionInfo(txId);
     if (!Object.keys(output).length) {
       await wait(3000);
-      return this.finalCheckTransactionResult(txID);
+      return this.finalCheckTransactionResult(txId);
     }
     const transactionInfo = {
       blockNumber: new BigNumber(output.blockNumber),
-      id: output.id,
+      txId: output.id,
     };
 
     if (output.result && output.result === "FAILED") {

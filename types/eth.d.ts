@@ -1,9 +1,10 @@
-import { ContractCallArgs, MultiCallArgs, SimpleTransactionResult } from "./types";
+import { ContractCallArgs, EthFormatValue, EthProvider, MultiCallArgs, SendTransaction, SimpleTransactionResult } from "./types";
 import { ContractHelperBase } from "./contract-helper-base";
-import { Provider, TransactionRequest, TransactionResponse } from "ethers";
-export declare class EthContractHelper extends ContractHelperBase {
+export declare class EthContractHelper<Provider extends EthProvider> extends ContractHelperBase<Provider> {
     private provider;
-    constructor(multicallContractAddress: string, provider: Provider);
+    private simulate;
+    private formatValueType;
+    constructor(multicallContractAddress: string, provider: Provider, simulate: boolean, formatValue: EthFormatValue);
     private buildAggregateCall;
     private buildUpAggregateResponse;
     private formatValue;
@@ -12,13 +13,13 @@ export declare class EthContractHelper extends ContractHelperBase {
      * Execute the multicall contract call
      * @param calls The calls
      */
-    multicall<T>(calls: MultiCallArgs[]): Promise<T>;
-    call<T>(contractCallArgs: ContractCallArgs): Promise<T>;
-    send(from: string, sendTransaction: {
-        (tx: TransactionRequest): Promise<TransactionResponse>;
-    }, contractOption: ContractCallArgs): Promise<string>;
+    multicall<T>(calls: MultiCallArgs<Provider>[]): Promise<T>;
+    call<T>(contractCallArgs: ContractCallArgs<Provider>): Promise<T>;
+    send(from: string, sendTransaction: SendTransaction<Provider>, contractOption: ContractCallArgs<Provider>): Promise<string>;
     private checkReceipt;
-    finalCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
-    fastCheckTransactionResult(txID: string): Promise<string>;
+    finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;
+    fastCheckTransactionResult(txId: string): Promise<{
+        txId: string;
+    }>;
 }
 //# sourceMappingURL=eth.d.ts.map

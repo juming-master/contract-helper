@@ -1,7 +1,10 @@
 import {
   AggregateContractResponse,
   ContractCallArgs,
+  EthFormatValue,
+  EthProvider,
   MultiCallArgs,
+  SendTransaction,
   SimpleTransactionResult,
 } from "./types";
 import {
@@ -16,11 +19,7 @@ import {
   Contract,
   FunctionFragment,
   Interface,
-  Provider,
-  Transaction,
   TransactionReceipt,
-  TransactionRequest,
-  TransactionResponse,
   getAddress,
 } from "ethers";
 import BigNumber from "bignumber.js";
@@ -194,40 +193,53 @@ const ABI = [
   },
 ];
 
-export class EthContractHelper extends ContractHelperBase {
+export class EthContractHelper<
+  Provider extends EthProvider
+> extends ContractHelperBase<Provider> {
   private provider: Provider;
+  private simulate: boolean;
+  private formatValueType: EthFormatValue;
 
-  constructor(multicallContractAddress: string, provider: Provider) {
+  constructor(
+    multicallContractAddress: string,
+    provider: Provider,
+    simulate: boolean,
+    formatValue: EthFormatValue
+  ) {
     super(multicallContractAddress);
     this.provider = provider;
+    this.simulate = simulate;
+    this.formatValueType = formatValue;
   }
 
-  private buildAggregateCall(multiCallArgs: MultiCallArgs[]) {
-    return buildAggregateCall(
+  private buildAggregateCall(multiCallArgs: MultiCallArgs<Provider>[]) {
+    return buildAggregateCall<Provider>(
       multiCallArgs,
       function (fragment: FunctionFragment, values?: ReadonlyArray<any>) {
         const iface = new Interface([fragment]);
         const encodedData = iface.encodeFunctionData(fragment, values);
         return encodedData;
-      }
+      },
+      "eth"
     );
   }
 
   private buildUpAggregateResponse<T>(
-    multiCallArgs: MultiCallArgs[],
+    multiCallArgs: MultiCallArgs<Provider>[],
     response: AggregateContractResponse
   ) {
-    return buildUpAggregateResponse<T>(
+    return buildUpAggregateResponse<Provider, T>(
       multiCallArgs,
       response,
       function (fragment, data) {
         const interf = new Interface([fragment]);
-        let result = interf.decodeFunctionData(fragment, data);
+        let result = interf.decodeFunctionResult(fragment, data);
         return result;
       },
       (value, fragment) => {
         return this.handleContractValue(value, fragment);
-      }
+      },
+      "eth"
     );
   }
 
@@ -238,9 +250,13 @@ export class EthContractHelper extends ContractHelperBase {
         return value.map((el: any) => this.formatValue(el, itemType));
       case type.startsWith("uint"):
       case type.startsWith("int"):
-        return new BigNumber(value.toString());
+        return this.formatValueType?.uint === "bigint"
+          ? BigInt(value.toString())
+          : new BigNumber(value.toString());
       case type === "address":
-        return getAddress(value);
+        return this.formatValueType?.address === "hex"
+          ? getAddress(value).toLowerCase()
+          : getAddress(value);
       default:
         return value;
     }
@@ -254,9 +270,12 @@ export class EthContractHelper extends ContractHelperBase {
     if (outputs && outputs.length === 1 && !outputs[0].name) {
       return this.formatValue(value, outputs[0].type);
     }
-    const result: Record<string, any> = {};
-    for (let output of outputs) {
-      result[output.name] = this.formatValue(value[output.name], output.type);
+    const result: Array<any> = [];
+    for (let [index, output] of outputs.entries()) {
+      result[index] = this.formatValue(value[index], output.type);
+      if (output.name) {
+        result[output.name] = this.formatValue(value[output.name], output.type);
+      }
     }
     return result;
   }
@@ -265,7 +284,7 @@ export class EthContractHelper extends ContractHelperBase {
    * Execute the multicall contract call
    * @param calls The calls
    */
-  public async multicall<T>(calls: MultiCallArgs[]) {
+  public async multicall<T>(calls: MultiCallArgs<Provider>[]) {
     const multicallContract = new Contract(
       this.multicallAddress,
       ABI,
@@ -273,19 +292,22 @@ export class EthContractHelper extends ContractHelperBase {
     );
     const multicalls = this.buildAggregateCall(calls);
     const response: AggregateContractResponse =
-      await multicallContract.aggregate(
-        multicalls.map((call) => [call.target, call.encodedData])
+      await multicallContract.aggregate.staticCall(
+        multicalls.map((call) => ({
+          target: call.target,
+          callData: call.encodedData,
+        }))
       );
     return this.buildUpAggregateResponse<T>(calls, response);
   }
 
-  public async call<T>(contractCallArgs: ContractCallArgs) {
+  public async call<T>(contractCallArgs: ContractCallArgs<Provider>) {
     const {
       address,
       abi,
       method,
       parameters = [],
-    } = transformContractCallArgs(contractCallArgs);
+    } = transformContractCallArgs(contractCallArgs, "eth");
     const contract = new Contract(address, abi, this.provider);
     const rawResult = await contract[method.name](...parameters);
     const result = this.handleContractValue(rawResult, method.fragment);
@@ -294,8 +316,8 @@ export class EthContractHelper extends ContractHelperBase {
 
   async send(
     from: string,
-    sendTransaction: { (tx: TransactionRequest): Promise<TransactionResponse> },
-    contractOption: ContractCallArgs
+    sendTransaction: SendTransaction<Provider>,
+    contractOption: ContractCallArgs<Provider>
   ) {
     const {
       address,
@@ -303,51 +325,61 @@ export class EthContractHelper extends ContractHelperBase {
       method,
       options,
       parameters = [],
-    } = transformContractCallArgs(contractOption);
+    } = transformContractCallArgs(contractOption, "eth");
     const chainId = (await this.provider.getNetwork()).chainId;
     const nonce = await this.provider.getTransactionCount(from);
     const interf = new Interface(abi);
     const data = interf.encodeFunctionData(method.fragment, parameters);
     const tx = {
-      ...options?.eth,
-      from,
+      ...options,
       to: address,
       data,
       nonce,
       chainId,
       type: 2,
+      from,
     };
-    const unsignedTx = Transaction.from(tx);
-    try {
-      await this.provider.call(tx);
-    } catch (err: any) {
-      console.error(err);
-      throw err;
+    const feeData = await this.provider.getFeeData();
+    const maxFee = {
+      maxFeePerGas: feeData.maxFeePerGas,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
+    };
+    const estimatedGas = await this.provider.estimateGas(tx);
+    const gasLimit = (estimatedGas * 120n) / 100n;
+    if (this.simulate) {
+      try {
+        await this.provider.call({ gasLimit, ...maxFee, ...tx, from });
+      } catch (err: any) {
+        console.error(err);
+        throw err;
+      }
     }
-    const transactionResponse = await sendTransaction(unsignedTx);
-    const receipt = await transactionResponse.wait(1);
-    return receipt!.hash;
+    const txId = await sendTransaction(
+      { gasLimit, ...maxFee, ...tx },
+      this.provider
+    );
+    return txId;
   }
 
   private async checkReceipt(
-    txID: string,
+    txId: string,
     confirmations: number
   ): Promise<TransactionReceipt> {
     return await retry(
       async () => {
-        const receipt = await this.provider.getTransactionReceipt(txID);
+        const receipt = await this.provider.getTransactionReceipt(txId);
         if (!receipt) {
           await wait(1000);
-          return this.checkReceipt(txID, confirmations);
+          return this.checkReceipt(txId, confirmations);
         }
         const receiptConfirmations = await receipt.confirmations();
         if (receiptConfirmations < confirmations) {
           await wait(1000);
-          return this.checkReceipt(txID, confirmations);
+          return this.checkReceipt(txId, confirmations);
         }
         if (!receipt.status) {
           throw new TransactionReceiptError("Transaction execute reverted", {
-            id: txID,
+            txId: txId,
           });
         }
         return receipt;
@@ -358,16 +390,17 @@ export class EthContractHelper extends ContractHelperBase {
   }
 
   public async finalCheckTransactionResult(
-    txID: string
+    txId: string
   ): Promise<SimpleTransactionResult> {
-    const receipt = await this.checkReceipt(txID, 5);
+    const receipt = await this.checkReceipt(txId, 5);
     return {
       blockNumber: new BigNumber(receipt.blockNumber),
-      id: receipt.hash,
+      txId: receipt.hash,
     };
   }
 
-  public async fastCheckTransactionResult(txID: string): Promise<string> {
-    return (await this.checkReceipt(txID, 0)).hash;
+  public async fastCheckTransactionResult(txId: string) {
+    const receipt = await this.checkReceipt(txId, 0);
+    return { txId: receipt.hash };
   }
 }

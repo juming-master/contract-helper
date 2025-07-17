@@ -1,4 +1,5 @@
 import wait from "wait";
+export { default as map, mapSkip as mapSkip, Mapper } from "./p-map";
 
 /**
  * Deep clone a object
@@ -42,38 +43,36 @@ export interface PromiseCallback<T> {
   };
 }
 
-export function executePromise<T>(
+export function runWithCallback<T>(
   fn: RetryFunction<T>,
   callback?: PromiseCallback<T>
 ): Promise<T> {
+  const promise = fn();
   if (callback) {
-    fn().then(callback.success).catch(callback.error);
+    promise.then(callback.success).catch(callback.error);
   }
-  return fn();
+  return promise;
 }
 
-export function executePromiseAndCallback<T>(
+export async function runPromiseWithCallback<T>(
   p: Promise<T>,
   callback: PromiseCallback<T>
 ) {
-  p.then((result) => {
-    callback.success && callback.success(result);
-  }).catch((err) => {
-    callback.error && callback.error(err);
-  });
-  return p;
-}
-
-export async function mapSeries<T, R>(
-  array: T[],
-  iterator: (item: T, i: number) => Promise<R>
-): Promise<R[]> {
-  const result: R[] = [];
-
-  for (let i = 0; i < array.length; i++) {
-    const value = await iterator(array[i], i);
-    result.push(value);
-  }
-
-  return result;
+  return p
+    .then((result) => {
+      try {
+        callback.success?.(result);
+      } catch (err) {
+        try {
+          callback.error?.(err);
+        } catch {}
+      }
+      return result;
+    })
+    .catch((err) => {
+      try {
+        callback.error?.(err);
+      } catch {}
+      throw err;
+    });
 }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.formatToEthAddress = void 0;
+exports.formatToEthAddress = exports.formatHexAddress = void 0;
 exports.formatBase58Address = formatBase58Address;
 exports.transformContractCallArgs = transformContractCallArgs;
 exports.findFragmentFromAbi = findFragmentFromAbi;
@@ -8,7 +8,6 @@ exports.buildAggregateCall = buildAggregateCall;
 exports.buildUpAggregateResponse = buildUpAggregateResponse;
 const tronweb_1 = require("tronweb");
 const ethers_1 = require("ethers");
-const viem_1 = require("viem");
 const helper_1 = require("./helper");
 const errors_1 = require("./errors");
 /**
@@ -29,17 +28,18 @@ const formatHexAddress = function (address) {
     }
     return tronweb_1.TronWeb.address.toChecksumAddress(address);
 };
+exports.formatHexAddress = formatHexAddress;
 /**
  * Convert a Tron hex address or base58 address or eth address to a formatted hex address.
  */
 const formatToEthAddress = function (address) {
     if (tronweb_1.TronWeb.isAddress(address)) {
-        return "0x" + formatHexAddress(address).slice(2).toLowerCase();
+        return (0, ethers_1.getAddress)("0x" + (0, exports.formatHexAddress)(address).slice(2));
     }
     if ((0, ethers_1.isAddress)(address)) {
         return (0, ethers_1.getAddress)(address);
     }
-    throw new Error(`${address} is invalid address.`);
+    return address;
 };
 exports.formatToEthAddress = formatToEthAddress;
 const getMethodConfig = function (address, abi, method) {
@@ -55,7 +55,7 @@ const getMethodConfig = function (address, abi, method) {
         throw new errors_1.ABIFunctionNotProvidedError({ address, method });
     }
     const signature = fn.format("minimal");
-    const selector = (0, viem_1.keccak256)((0, viem_1.toHex)(signature)).slice(0, 10);
+    const selector = (0, ethers_1.dataSlice)((0, ethers_1.id)(signature), 0, 4);
     return {
         selector, // "0xa9059cbb"
         signature, // "transfer(address,uint256)"
@@ -63,7 +63,7 @@ const getMethodConfig = function (address, abi, method) {
         name: method, // "transfer"
     };
 };
-function transformContractCallArgs(contractCallArgs) {
+function transformContractCallArgs(contractCallArgs, network) {
     let { address, abi, method } = contractCallArgs;
     if (!address) {
         throw new errors_1.ContractAddressNotProvidedError();
@@ -79,23 +79,35 @@ function transformContractCallArgs(contractCallArgs) {
         abi = [fragment];
     }
     const methodConfig = getMethodConfig(address, abi, method);
-    return Object.assign(Object.assign({}, contractCallArgs), { abi: abi, method: methodConfig });
+    return {
+        ...contractCallArgs,
+        abi: abi,
+        method: methodConfig,
+        address: network === "tron"
+            ? formatBase58Address(address)
+            : (0, exports.formatToEthAddress)(address),
+    };
 }
 function findFragmentFromAbi(contractCallContext) {
     const { abi, call } = contractCallContext;
     const { methodName } = call;
     const targetName = methodName.trim();
     const interf = new ethers_1.Interface(abi);
-    return interf.getFunction(targetName);
+    try {
+        return interf.getFunction(targetName);
+    }
+    catch {
+        return null;
+    }
 }
 /**
  * Build aggregate call context
  * @param multiCallArgs The contract call contexts
  */
-function buildAggregateCall(multiCallArgs, encodeFunctionData) {
+function buildAggregateCall(multiCallArgs, encodeFunctionData, network) {
     const aggregateCalls = [];
     for (let i = 0; i < multiCallArgs.length; i++) {
-        const transformedArgs = transformContractCallArgs(multiCallArgs[i]);
+        const transformedArgs = transformContractCallArgs(multiCallArgs[i], network);
         const contractCall = {
             key: multiCallArgs[i].key,
             address: transformedArgs.address,
@@ -121,14 +133,14 @@ function buildAggregateCall(multiCallArgs, encodeFunctionData) {
     }
     return aggregateCalls;
 }
-function buildUpAggregateResponse(multiCallArgs, response, decodeFunctionData, handleContractValue) {
+function buildUpAggregateResponse(multiCallArgs, response, decodeFunctionData, handleContractValue, network) {
     const returnObject = {
         results: {},
         blockNumber: response.blockNumber,
     };
     for (let i = 0; i < response.returnData.length; i++) {
         const returnData = response.returnData[i];
-        const transformedArgs = transformContractCallArgs(multiCallArgs[i]);
+        const transformedArgs = transformContractCallArgs(multiCallArgs[i], network);
         const contractCall = {
             key: multiCallArgs[i].key,
             address: transformedArgs.address,

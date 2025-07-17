@@ -1,4 +1,4 @@
-import { executePromiseAndCallback } from "./helper";
+import { runPromiseWithCallback } from "./helper";
 import {
   AggregateCall,
   AggregateContractResponse,
@@ -6,16 +6,20 @@ import {
   MultiCallArgs as MultiCallArgs,
   SimpleTransactionResult,
   TransactionOption,
-  SignTransaction,
+  SendTransaction,
   CheckTransactionType,
 } from "./types";
 import { TransactionReceiptError } from "./errors";
+import { TronWeb } from "tronweb";
+import { Provider as EthProvider } from "ethers";
 
 export interface Contract {
   multicall(calls: AggregateCall[]): AggregateContractResponse;
 }
 
-export abstract class ContractHelperBase {
+export abstract class ContractHelperBase<
+  Provider extends TronWeb | EthProvider
+> {
   protected multicallAddress: string;
 
   /**
@@ -28,17 +32,19 @@ export abstract class ContractHelperBase {
   /**
    * @param calls
    */
-  abstract multicall<T>(calls: MultiCallArgs[]): Promise<T>;
+  abstract multicall<T>(calls: MultiCallArgs<Provider>[]): Promise<T>;
 
-  abstract call<T>(contractOption: ContractCallArgs): Promise<T>;
+  abstract call<T>(contractOption: ContractCallArgs<Provider>): Promise<T>;
 
   abstract send(
     from: string,
-    signTransaction: SignTransaction,
-    contractOption: ContractCallArgs
+    signTransaction: SendTransaction<Provider>,
+    contractOption: ContractCallArgs<Provider>
   ): Promise<string>;
 
-  abstract fastCheckTransactionResult(txID: string): Promise<string>;
+  abstract fastCheckTransactionResult(
+    txID: string
+  ): Promise<SimpleTransactionResult>;
   abstract finalCheckTransactionResult(
     txID: string
   ): Promise<SimpleTransactionResult>;
@@ -47,18 +53,18 @@ export abstract class ContractHelperBase {
     txID: string,
     options: TransactionOption = {}
   ) {
-    const checkOption = options.check ?? CheckTransactionType.Final;
+    const checkOption = options.check ?? CheckTransactionType.Fast;
     if (checkOption === CheckTransactionType.Final) {
       return await this.fastCheckTransactionResult(txID)
         .then((transaction) => {
-          executePromiseAndCallback<SimpleTransactionResult>(
+          runPromiseWithCallback<SimpleTransactionResult>(
             this.finalCheckTransactionResult(txID),
             options
           );
           return transaction;
         })
         .catch((error: TransactionReceiptError) => {
-          executePromiseAndCallback<SimpleTransactionResult>(
+          runPromiseWithCallback<SimpleTransactionResult>(
             Promise.reject(error),
             options
           );
@@ -67,14 +73,14 @@ export abstract class ContractHelperBase {
     }
     return await this.finalCheckTransactionResult(txID)
       .then((transaction) => {
-        executePromiseAndCallback<SimpleTransactionResult>(
+        runPromiseWithCallback<SimpleTransactionResult>(
           Promise.resolve(transaction),
           options
         );
         return transaction;
       })
       .catch((error: TransactionReceiptError) => {
-        executePromiseAndCallback<SimpleTransactionResult>(
+        runPromiseWithCallback<SimpleTransactionResult>(
           Promise.reject(error),
           options
         );
