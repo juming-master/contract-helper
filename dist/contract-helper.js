@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ContractHelper = void 0;
-const tronweb_1 = require("tronweb");
 const helper_1 = require("./helper");
 const debounce_1 = __importDefault(require("debounce"));
 const uuid_1 = require("uuid");
@@ -34,11 +33,10 @@ class ContractHelper {
         const multicallAddr = options.multicallV2Address;
         const multicallLazyQueryTimeout = options.multicallLazyQueryTimeout ?? 1000;
         this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
-        this.isTron = provider instanceof tronweb_1.TronWeb;
-        this.helper =
-            provider instanceof tronweb_1.TronWeb
-                ? new tron_1.TronContractHelper(multicallAddr, provider, options.formatValue)
-                : new eth_1.EthContractHelper(multicallAddr, provider, options.simulateBeforeSend ?? true, options.formatValue);
+        this.isTron = Object.hasOwn(provider, "trx");
+        this.helper = this.isTron
+            ? new tron_1.TronContractHelper(multicallAddr, provider, options.formatValue)
+            : new eth_1.EthContractHelper(multicallAddr, provider, options.simulateBeforeSend ?? true, options.formatValue);
         this.addLazyCall = this.addLazyCall.bind(this);
         this.addPendingQuery = this.addPendingQuery.bind(this);
         this.debounceExecuteLazyCalls = (0, debounce_1.default)(() => {

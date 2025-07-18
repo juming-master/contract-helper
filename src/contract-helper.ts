@@ -47,20 +47,19 @@ export class ContractHelper<Provider extends TronWeb | EthProvider = any> {
     const multicallAddr = options.multicallV2Address;
     const multicallLazyQueryTimeout = options.multicallLazyQueryTimeout ?? 1000;
     this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
-    this.isTron = provider instanceof TronWeb;
-    this.helper =
-      provider instanceof TronWeb
-        ? new TronContractHelper<TronWeb>(
-            multicallAddr,
-            provider,
-            options.formatValue as TrxFormatValue
-          )
-        : new EthContractHelper<EthProvider>(
-            multicallAddr,
-            provider,
-            options.simulateBeforeSend ?? true,
-            options.formatValue as EthFormatValue
-          );
+    this.isTron = Object.hasOwn(provider, "trx");
+    this.helper = this.isTron
+      ? new TronContractHelper<TronWeb>(
+          multicallAddr,
+          provider as TronWeb,
+          options.formatValue as TrxFormatValue
+        )
+      : new EthContractHelper<EthProvider>(
+          multicallAddr,
+          provider as EthProvider,
+          options.simulateBeforeSend ?? true,
+          options.formatValue as EthFormatValue
+        );
     this.addLazyCall = this.addLazyCall.bind(this);
     this.addPendingQuery = this.addPendingQuery.bind(this);
     this.debounceExecuteLazyCalls = debounce(() => {
