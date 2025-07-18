@@ -437,7 +437,7 @@ export class TronContractHelper<
       })),
       from
     );
-    let txId = await sendTransaction(transaction.transaction, this.provider);
+    let txId = await sendTransaction(transaction.transaction, this.provider, true);
     return txId;
   }
 
@@ -480,7 +480,7 @@ export class TronContractHelper<
       return this.finalCheckTransactionResult(txId);
     }
     const transactionInfo = {
-      blockNumber: new BigNumber(output.blockNumber),
+      blockNumber: BigInt(output.blockNumber),
       txId: output.id,
     };
 

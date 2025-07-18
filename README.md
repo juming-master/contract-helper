@@ -130,11 +130,11 @@ Send a transaction and return the transaction hash.
 ```typescript
 // Type definitions
 interface EthSendTransaction {
-  (tx: EthTransactionRequest, provider: EthProvider): Promise<string>;
+  (tx: EthTransactionRequest, provider: EthProvider, isTron: false): Promise<string>;
 }
 
 interface TronSendTransaction {
-  (tx: TronTransactionRequest, provider: TronWeb): Promise<string>;
+  (tx: TronTransactionRequest, provider: TronWeb, isTron: true): Promise<string>;
 }
 
 type SendTransaction<Provider extends TronWeb | EthProvider> = Provider extends TronWeb
@@ -246,6 +246,91 @@ const result = await helper.checkTransactionResult(txID, {
 console.log("Transaction ID:", result.txId);
 console.log("Block Number:", result.blockNumber);
 
+```
+
+### sendWithOptions(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs, options: {trx?: TronContractCallOptions; eth: EthContractCallOptions;}): Promise<string>
+
+Send a transaction with trx options and eth options.
+
+```typescript
+const txId = await ethHelper.send(
+  signerAddress,
+  async (tx: EthTransactionRequest | TronTransactionRequest, provider: Provider | TronWeb, isTron: boolean) => {
+    if (isTron) {
+      const signedTransaction = await signer.trx.sign(tx, PRIVATE_KEY);
+      const response = await provider.trx.sendRawTransaction(signedTransaction);
+      return response.transaction.txID;
+    } else {
+      const signedTx = await ethWallet.signTransaction(tx);
+      const response = await provider.broadcastTransaction(signedTx);
+      return response.hash; 
+    }
+  },
+  {
+    address: 'TokenAddress',
+    abi: erc20ABI,
+    method: 'transfer(address,uint256)',
+    parameters: ['0xReceipt', '1000000']
+  },
+  {
+    trx: {
+      callValue: 1_000_000n,
+      feeLimit: 65327n,
+    },
+    eth: {
+      value: 1_000_000_000_000_000_000n,
+      maxFeePerGas: 65327n,
+    }
+  }
+);
+```
+
+### sendAndCheckResult(from: string, sendTransaction: SendTransaction, contractCall: Omit<ContractCallArgs, "options">, options?: {trx?: TronContractCallOptions; eth?: EthContractCallOptions;}, callback?: TransactionOption): Promise<SimpleTransactionResult>;
+
+Send a transaction with trx options and eth options and check the transaction result.
+
+```typescript
+const result = await ethHelper.send(
+  signerAddress,
+  async (tx: EthTransactionRequest | TronTransactionRequest, provider: Provider | TronWeb, isTron: boolean) => {
+    if (isTron) {
+      const signedTransaction = await signer.trx.sign(tx, PRIVATE_KEY);
+      const response = await provider.trx.sendRawTransaction(signedTransaction);
+      return response.transaction.txID;
+    } else {
+      const signedTx = await ethWallet.signTransaction(tx);
+      const response = await provider.broadcastTransaction(signedTx);
+      return response.hash; 
+    }
+  },
+  {
+    address: 'TokenAddress',
+    abi: erc20ABI,
+    method: 'transfer(address,uint256)',
+    parameters: ['0xReceipt', '1000000']
+  },
+  {
+    trx: {
+      callValue: 1_000_000n,
+      feeLimit: 65327n,
+    },
+    eth: {
+      value: 1_000_000_000_000_000_000n,
+      maxFeePerGas: 65327n,
+    }
+  },
+  {
+    check: CheckTransactionType.Fast, // default is fast
+    success: (info) => {
+      // This is called when fianl check is completed even check is setted CheckTransactionType.Fast
+      console.log("Transaction succeeded:", info);
+    },
+    error: (err) => {
+      console.error("Transaction check reverted:", err);
+    },
+  }
+);
+console.log("Transaction ID:", result.txId);
 ```
 
 ## 💤 Lazy Calls

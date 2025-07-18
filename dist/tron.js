@@ -357,7 +357,7 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
             type: el.type,
             value: parameters[i],
         })), from);
-        let txId = await sendTransaction(transaction.transaction, this.provider);
+        let txId = await sendTransaction(transaction.transaction, this.provider, true);
         return txId;
     }
     async fastCheckTransactionResult(txId) {
@@ -383,7 +383,7 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
             return this.finalCheckTransactionResult(txId);
         }
         const transactionInfo = {
-            blockNumber: new bignumber_js_1.default(output.blockNumber),
+            blockNumber: BigInt(output.blockNumber),
             txId: output.id,
         };
         if (output.result && output.result === "FAILED") {

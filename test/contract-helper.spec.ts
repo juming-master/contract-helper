@@ -139,7 +139,8 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
       >({
         address: multiTypes,
         abi: ABI,
-        method: "function getUser() view returns (address owner,uint256 amount)",
+        method:
+          "function getUser() view returns (address owner,uint256 amount)",
       });
       expect(result3.amount.eq("42")).to.be.equal(true);
     });
@@ -386,33 +387,33 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
       expect(duration).to.be.greaterThan(90); // Should trigger after ~100ms
     });
 
-    // it("should send approve transaction and check result", async () => {
-    //   this.timeout(200000000);
-    //   const approveArgs = {
-    //     address: erc20,
-    //     abi: [
-    //       {
-    //         constant: false,
-    //         inputs: [
-    //           { name: "_spender", type: "address" },
-    //           { name: "_value", type: "uint256" },
-    //         ],
-    //         name: "approve",
-    //         outputs: [{ name: "success", type: "bool" }],
-    //         type: "function",
-    //       },
-    //     ],
-    //     method: "approve",
-    //     parameters: [
-    //       "0x67940FB0e23A1c91A35a71fc2C8D8b17413fB1d2",
-    //       new BigNumber(1).shiftedBy(18).toFixed(),
-    //     ],
-    //   };
-    //   const txId = await helper.send(from, send, approveArgs);
-    //   const confirmed = await helper["helper"].finalCheckTransactionResult(
-    //     txId
-    //   );
-    //   expect(confirmed.txId).to.be.equal(txId);
-    // });
+    it("should send approve transaction and check result", async () => {
+      this.timeout(200000000);
+      const approveArgs = {
+        address: erc20,
+        abi: [
+          {
+            constant: false,
+            inputs: [
+              { name: "_spender", type: "address" },
+              { name: "_value", type: "uint256" },
+            ],
+            name: "approve",
+            outputs: [{ name: "success", type: "bool" }],
+            type: "function",
+          },
+        ],
+        method: "approve",
+        parameters: [
+          "0x67940FB0e23A1c91A35a71fc2C8D8b17413fB1d2",
+          new BigNumber(1).shiftedBy(18).toFixed(),
+        ],
+      };
+      const txId = await helper.send(from, send, approveArgs);
+      const confirmed = await helper["helper"].finalCheckTransactionResult(
+        txId
+      );
+      expect(confirmed.txId).to.be.equal(txId);
+    });
   });
 }

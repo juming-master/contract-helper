@@ -17,6 +17,7 @@ import wait from "wait";
 import { ContractHelperBase } from "./contract-helper-base";
 import {
   Contract,
+  FeeData,
   FunctionFragment,
   Interface,
   TransactionReceipt,
@@ -330,7 +331,7 @@ export class EthContractHelper<
     const nonce = await this.provider.getTransactionCount(from);
     const interf = new Interface(abi);
     const data = interf.encodeFunctionData(method.fragment, parameters);
-    const tx = {
+    const tx: any = {
       ...options,
       to: address,
       data,
@@ -339,25 +340,30 @@ export class EthContractHelper<
       type: 2,
       from,
     };
-    const feeData = await this.provider.getFeeData();
-    const maxFee = {
-      maxFeePerGas: feeData.maxFeePerGas,
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
-    };
-    const estimatedGas = await this.provider.estimateGas(tx);
-    const gasLimit = (estimatedGas * 120n) / 100n;
+    if (!tx?.gasPrice) {
+      const feeData = await this.provider.getFeeData();
+      if (!tx?.maxFeePerGas) {
+        tx.maxFeePerGas = feeData.maxFeePerGas;
+      }
+      if (!tx?.maxPriorityFeePerGas) {
+        tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+      }
+    }
+    if (!tx?.gasLimit) {
+      const estimatedGas = await this.provider.estimateGas(tx);
+      const gasLimit = (estimatedGas * 120n) / 100n;
+      tx.gasLimit = gasLimit;
+    }
+
     if (this.simulate) {
       try {
-        await this.provider.call({ gasLimit, ...maxFee, ...tx, from });
+        await this.provider.call({ ...tx, from });
       } catch (err: any) {
         console.error(err);
         throw err;
       }
     }
-    const txId = await sendTransaction(
-      { gasLimit, ...maxFee, ...tx },
-      this.provider
-    );
+    const txId = await sendTransaction({ ...tx }, this.provider, false);
     return txId;
   }
 
@@ -381,9 +387,7 @@ export class EthContractHelper<
           throw new TransactionReceiptError("Transaction execute reverted", {
             txId: txId,
             blockNumber:
-              confirmations >= 5
-                ? new BigNumber(receipt.blockNumber)
-                : undefined,
+              confirmations >= 5 ? BigInt(receipt.blockNumber) : undefined,
           });
         }
         return receipt;
@@ -398,7 +402,7 @@ export class EthContractHelper<
   ): Promise<SimpleTransactionResult> {
     const receipt = await this.checkReceipt(txId, 5);
     return {
-      blockNumber: new BigNumber(receipt.blockNumber),
+      blockNumber: BigInt(receipt.blockNumber),
       txId: receipt.hash,
     };
   }

@@ -271,23 +271,30 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             type: 2,
             from,
         };
-        const feeData = await this.provider.getFeeData();
-        const maxFee = {
-            maxFeePerGas: feeData.maxFeePerGas,
-            maxPriorityFeePerGas: feeData.maxPriorityFeePerGas,
-        };
-        const estimatedGas = await this.provider.estimateGas(tx);
-        const gasLimit = (estimatedGas * 120n) / 100n;
+        if (!tx?.gasPrice) {
+            const feeData = await this.provider.getFeeData();
+            if (!tx?.maxFeePerGas) {
+                tx.maxFeePerGas = feeData.maxFeePerGas;
+            }
+            if (!tx?.maxPriorityFeePerGas) {
+                tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+            }
+        }
+        if (!tx?.gasLimit) {
+            const estimatedGas = await this.provider.estimateGas(tx);
+            const gasLimit = (estimatedGas * 120n) / 100n;
+            tx.gasLimit = gasLimit;
+        }
         if (this.simulate) {
             try {
-                await this.provider.call({ gasLimit, ...maxFee, ...tx, from });
+                await this.provider.call({ ...tx, from });
             }
             catch (err) {
                 console.error(err);
                 throw err;
             }
         }
-        const txId = await sendTransaction({ gasLimit, ...maxFee, ...tx }, this.provider);
+        const txId = await sendTransaction({ ...tx }, this.provider, false);
         return txId;
     }
     async checkReceipt(txId, confirmations) {
@@ -305,9 +312,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             if (!receipt.status) {
                 throw new errors_1.TransactionReceiptError("Transaction execute reverted", {
                     txId: txId,
-                    blockNumber: confirmations >= 5
-                        ? new bignumber_js_1.default(receipt.blockNumber)
-                        : undefined,
+                    blockNumber: confirmations >= 5 ? BigInt(receipt.blockNumber) : undefined,
                 });
             }
             return receipt;
@@ -316,7 +321,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
     async finalCheckTransactionResult(txId) {
         const receipt = await this.checkReceipt(txId, 5);
         return {
-            blockNumber: new bignumber_js_1.default(receipt.blockNumber),
+            blockNumber: BigInt(receipt.blockNumber),
             txId: receipt.hash,
         };
     }
