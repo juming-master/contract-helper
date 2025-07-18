@@ -4,10 +4,12 @@ import {
   AggregateContractResponse,
   CONTRACT_SUCCESS,
   ContractCallArgs,
+  EthProvider,
   FastTransactionResult,
   MultiCallArgs,
   SendTransaction,
   SimpleTransactionResult,
+  TronProvider,
   TrxFormatValue,
 } from "./types";
 import {
@@ -259,14 +261,14 @@ const ABI = [
 ];
 
 export class TronContractHelper<
-  Provider extends TronWeb
+  Provider extends TronProvider | EthProvider
 > extends ContractHelperBase<Provider> {
-  private provider: TronWeb;
+  private provider: TronProvider;
   private formatValueType: TrxFormatValue;
 
   constructor(
     multicallContractAddress: string,
-    provider: Provider,
+    provider: TronProvider,
     formatValue: TrxFormatValue
   ) {
     super(multicallContractAddress);
@@ -397,7 +399,7 @@ export class TronContractHelper<
   }
 
   static async broadcastTransaction(
-    provider: TronWeb,
+    provider: TronProvider,
     signedTransaction: SignedTransaction<ContractParamter>
   ) {
     const broadcast = await provider.trx.sendRawTransaction(signedTransaction);
@@ -424,7 +426,10 @@ export class TronContractHelper<
       method,
       options,
       parameters = [],
-    } = transformContractCallArgs(contractOption, "tron");
+    } = transformContractCallArgs<TronProvider>(
+      contractOption as ContractCallArgs<TronProvider>,
+      "tron"
+    );
     const functionFragment = method.fragment;
     const provider = this.provider;
     const transaction = await provider.transactionBuilder.triggerSmartContract(
@@ -437,7 +442,12 @@ export class TronContractHelper<
       })),
       from
     );
-    let txId = await sendTransaction(transaction.transaction, this.provider, true);
+    let txId = await sendTransaction(
+      // @ts-ignore
+      transaction.transaction,
+      this.provider,
+      true
+    );
     return txId;
   }
 

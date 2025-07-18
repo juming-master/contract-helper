@@ -294,7 +294,9 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
                 throw err;
             }
         }
-        const txId = await sendTransaction({ ...tx }, this.provider, false);
+        const txId = await sendTransaction({ ...tx }, 
+        // @ts-ignore
+        this.provider, false);
         return txId;
     }
     async checkReceipt(txId, confirmations) {

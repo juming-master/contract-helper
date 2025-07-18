@@ -1,10 +1,10 @@
-import { ContractCallArgs, EthFormatValue, EthProvider, MultiCallArgs, SendTransaction, SimpleTransactionResult } from "./types";
+import { ContractCallArgs, EthFormatValue, EthProvider, MultiCallArgs, SendTransaction, SimpleTransactionResult, TronProvider } from "./types";
 import { ContractHelperBase } from "./contract-helper-base";
-export declare class EthContractHelper<Provider extends EthProvider> extends ContractHelperBase<Provider> {
+export declare class EthContractHelper<Provider extends TronProvider | EthProvider> extends ContractHelperBase<Provider> {
     private provider;
     private simulate;
     private formatValueType;
-    constructor(multicallContractAddress: string, provider: Provider, simulate: boolean, formatValue: EthFormatValue);
+    constructor(multicallContractAddress: string, provider: EthProvider, simulate: boolean, formatValue: EthFormatValue);
     private buildAggregateCall;
     private buildUpAggregateResponse;
     private formatValue;

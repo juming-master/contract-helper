@@ -1,11 +1,10 @@
-import { TronWeb } from "tronweb";
-import { ContractCallArgs, MultiCallArgs, SendTransaction, SimpleTransactionResult, TrxFormatValue } from "./types";
+import { ContractCallArgs, EthProvider, MultiCallArgs, SendTransaction, SimpleTransactionResult, TronProvider, TrxFormatValue } from "./types";
 import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
 import { ContractHelperBase } from "./contract-helper-base";
-export declare class TronContractHelper<Provider extends TronWeb> extends ContractHelperBase<Provider> {
+export declare class TronContractHelper<Provider extends TronProvider | EthProvider> extends ContractHelperBase<Provider> {
     private provider;
     private formatValueType;
-    constructor(multicallContractAddress: string, provider: Provider, formatValue: TrxFormatValue);
+    constructor(multicallContractAddress: string, provider: TronProvider, formatValue: TrxFormatValue);
     private formatToEthAddress;
     /**
      * Map call contract to match contract format
@@ -22,7 +21,7 @@ export declare class TronContractHelper<Provider extends TronWeb> extends Contra
      */
     multicall<T>(calls: MultiCallArgs<Provider>[]): Promise<T>;
     call<T>(contractCallArgs: ContractCallArgs<Provider>): Promise<T>;
-    static broadcastTransaction(provider: TronWeb, signedTransaction: SignedTransaction<ContractParamter>): Promise<string>;
+    static broadcastTransaction(provider: TronProvider, signedTransaction: SignedTransaction<ContractParamter>): Promise<string>;
     send(from: string, sendTransaction: SendTransaction<Provider>, contractOption: ContractCallArgs<Provider>): Promise<string>;
     fastCheckTransactionResult(txId: string): any;
     finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;

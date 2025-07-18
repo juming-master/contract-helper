@@ -153,8 +153,15 @@ export interface TronSendTransaction {
   ): Promise<string>;
 }
 
-export type SendTransaction<Provider extends TronProvider | EthProvider> =
-  Provider extends TronProvider ? TronSendTransaction : EthSendTransaction;
+export interface SendTransaction<Provider extends TronProvider | EthProvider> {
+  (
+    tx: Provider extends TronProvider
+      ? TronTransactionRequest
+      : EthTransactionRequest,
+    provider: Provider extends TronProvider ? TronProvider : EthProvider,
+    isTron: Provider extends TronProvider ? true : false
+  ): Promise<string>;
+}
 
 export const CONTRACT_SUCCESS = "SUCCESS";
 

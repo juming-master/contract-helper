@@ -357,7 +357,9 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
             type: el.type,
             value: parameters[i],
         })), from);
-        let txId = await sendTransaction(transaction.transaction, this.provider, true);
+        let txId = await sendTransaction(
+        // @ts-ignore
+        transaction.transaction, this.provider, true);
         return txId;
     }
     async fastCheckTransactionResult(txId) {

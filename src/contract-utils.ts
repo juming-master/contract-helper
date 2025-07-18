@@ -19,6 +19,7 @@ import {
   ContractCallReturnContext,
   EthProvider,
   MultiCallArgs,
+  TronProvider,
 } from "./types";
 import { deepClone } from "./helper";
 import {
@@ -102,7 +103,7 @@ const getMethodConfig = function (
 };
 
 export function transformContractCallArgs<
-  Provider extends TronWeb | EthProvider
+  Provider extends TronProvider | EthProvider
 >(contractCallArgs: ContractCallArgs<Provider>, network: "tron" | "eth") {
   let { address, abi, method } = contractCallArgs;
   if (!address) {

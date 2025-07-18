@@ -99,7 +99,9 @@ export interface EthSendTransaction {
 export interface TronSendTransaction {
     (tx: TronTransactionRequest, provider: TronProvider, isTron: true): Promise<string>;
 }
-export type SendTransaction<Provider extends TronProvider | EthProvider> = Provider extends TronProvider ? TronSendTransaction : EthSendTransaction;
+export interface SendTransaction<Provider extends TronProvider | EthProvider> {
+    (tx: Provider extends TronProvider ? TronTransactionRequest : EthTransactionRequest, provider: Provider extends TronProvider ? TronProvider : EthProvider, isTron: Provider extends TronProvider ? true : false): Promise<string>;
+}
 export declare const CONTRACT_SUCCESS = "SUCCESS";
 export interface FastTransactionResult<T = ContractParamter> {
     txID: string;

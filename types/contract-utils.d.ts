@@ -1,6 +1,6 @@
 import { TronWeb } from "tronweb";
 import { BytesLike, FunctionFragment } from "ethers";
-import { AggregateCall, AggregateContractResponse, ContractCall, ContractCallArgs, EthProvider, MultiCallArgs } from "./types";
+import { AggregateCall, AggregateContractResponse, ContractCall, ContractCallArgs, EthProvider, MultiCallArgs, TronProvider } from "./types";
 /**
  * Convert a Tron hex address or base58 address to a base58 address.
  */
@@ -13,7 +13,7 @@ export declare const formatHexAddress: (address: string) => string;
  * Convert a Tron hex address or base58 address or eth address to a formatted hex address.
  */
 export declare const formatToEthAddress: (address: string) => string;
-export declare function transformContractCallArgs<Provider extends TronWeb | EthProvider>(contractCallArgs: ContractCallArgs<Provider>, network: "tron" | "eth"): {
+export declare function transformContractCallArgs<Provider extends TronProvider | EthProvider>(contractCallArgs: ContractCallArgs<Provider>, network: "tron" | "eth"): {
     abi: any;
     method: {
         abi: any;

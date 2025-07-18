@@ -6,6 +6,7 @@ import {
   MultiCallArgs,
   SendTransaction,
   SimpleTransactionResult,
+  TronProvider,
 } from "./types";
 import {
   buildAggregateCall,
@@ -195,15 +196,15 @@ const ABI = [
 ];
 
 export class EthContractHelper<
-  Provider extends EthProvider
+  Provider extends TronProvider | EthProvider
 > extends ContractHelperBase<Provider> {
-  private provider: Provider;
+  private provider: EthProvider;
   private simulate: boolean;
   private formatValueType: EthFormatValue;
 
   constructor(
     multicallContractAddress: string,
-    provider: Provider,
+    provider: EthProvider,
     simulate: boolean,
     formatValue: EthFormatValue
   ) {
@@ -363,7 +364,12 @@ export class EthContractHelper<
         throw err;
       }
     }
-    const txId = await sendTransaction({ ...tx }, this.provider, false);
+    const txId = await sendTransaction(
+      { ...tx },
+      // @ts-ignore
+      this.provider,
+      false
+    );
     return txId;
   }
 
