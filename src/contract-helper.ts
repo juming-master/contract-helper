@@ -10,6 +10,8 @@ import {
   SimpleTransactionResult,
   TrxFormatValue,
   EthFormatValue,
+  TronContractCallOptions,
+  EthContractCallOptions,
 } from "./types";
 import { runWithCallback, map, retry } from "./helper";
 import debounce, { DebouncedFunction } from "debounce";
@@ -18,12 +20,14 @@ import { ContractHelperOptions } from "./types";
 import { TronContractHelper } from "./tron";
 import { EthContractHelper } from "./eth";
 import { Provider as EthProvider } from "ethers";
+import { TriggerSmartContractOptions } from "tronweb/lib/esm/types";
 
 export class ContractHelper<Provider extends TronWeb | EthProvider> {
   private helper: TronContractHelper<TronWeb> | EthContractHelper<EthProvider>;
   private pendingQueries: ContractQuery<Provider>[] = [];
   private debounceExecuteLazyCalls: DebouncedFunction<() => any>;
   private multicallMaxPendingLength: number;
+  private isTron: boolean;
 
   /**
    * @param options {
@@ -43,6 +47,7 @@ export class ContractHelper<Provider extends TronWeb | EthProvider> {
     const multicallAddr = options.multicallV2Address;
     const multicallLazyQueryTimeout = options.multicallLazyQueryTimeout ?? 1000;
     this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
+    this.isTron = provider instanceof TronWeb;
     this.helper =
       provider instanceof TronWeb
         ? new TronContractHelper<TronWeb>(
@@ -106,7 +111,6 @@ export class ContractHelper<Provider extends TronWeb | EthProvider> {
    * @param from signer address
    * @param sendTransaction sign transaction function.
    * @param contractCall contract call arguments.
-   * @param options execute callback.
    */
   async send(
     from: string,
@@ -120,6 +124,31 @@ export class ContractHelper<Provider extends TronWeb | EthProvider> {
       contractCall
     );
     return txId;
+  }
+
+  /**
+   * Sign the transaction and send it to the network with trx&eth options.
+   * @param from signer address
+   * @param sendTransaction sign transaction function.
+   * @param contractCall contract call arguments.
+   * @param options includes trx: {feeLimit,tokenValue...} and eth: {gasPrice,...}
+   */
+  async sendWithOptions(
+    from: string,
+    sendTransaction: SendTransaction<Provider>,
+    contractCall: Omit<ContractCallArgs<Provider>, "options">,
+    options: {
+      trx: TronContractCallOptions;
+      eth: EthContractCallOptions;
+    }
+  ) {
+    const call: ContractCallArgs<Provider> = {
+      ...contractCall,
+      options: (this.isTron
+        ? options.trx
+        : options.eth) as ContractCallArgs<Provider>["options"],
+    };
+    return this.send(from, sendTransaction, call);
   }
 
   async checkTransactionResult(
