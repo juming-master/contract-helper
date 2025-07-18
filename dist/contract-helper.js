@@ -9,6 +9,14 @@ const debounce_1 = __importDefault(require("debounce"));
 const uuid_1 = require("uuid");
 const tron_1 = require("./tron");
 const eth_1 = require("./eth");
+function isTronWeb(p) {
+    return (p &&
+        typeof p === "object" &&
+        typeof p.defaultAddress === "object" &&
+        typeof p.trx === "object" &&
+        typeof p.trx.getAccount === "function" &&
+        typeof p.contract === "function");
+}
 class ContractHelper {
     helper;
     pendingQueries = [];
@@ -33,7 +41,7 @@ class ContractHelper {
         const multicallAddr = options.multicallV2Address;
         const multicallLazyQueryTimeout = options.multicallLazyQueryTimeout ?? 1000;
         this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
-        this.isTron = Object.hasOwn(provider, "trx");
+        this.isTron = isTronWeb(provider);
         this.helper = this.isTron
             ? new tron_1.TronContractHelper(multicallAddr, provider, options.formatValue)
             : new eth_1.EthContractHelper(multicallAddr, provider, options.simulateBeforeSend ?? true, options.formatValue);

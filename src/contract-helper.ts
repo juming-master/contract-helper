@@ -22,6 +22,17 @@ import { EthContractHelper } from "./eth";
 import { Provider as EthProvider } from "ethers";
 import { TriggerSmartContractOptions } from "tronweb/lib/esm/types";
 
+function isTronWeb(p: any): p is TronWeb {
+  return (
+    p &&
+    typeof p === "object" &&
+    typeof p.defaultAddress === "object" &&
+    typeof p.trx === "object" &&
+    typeof p.trx.getAccount === "function" &&
+    typeof p.contract === "function"
+  );
+}
+
 export class ContractHelper<Provider extends TronWeb | EthProvider = any> {
   private helper: TronContractHelper<TronWeb> | EthContractHelper<EthProvider>;
   private pendingQueries: ContractQuery<Provider>[] = [];
@@ -47,7 +58,7 @@ export class ContractHelper<Provider extends TronWeb | EthProvider = any> {
     const multicallAddr = options.multicallV2Address;
     const multicallLazyQueryTimeout = options.multicallLazyQueryTimeout ?? 1000;
     this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
-    this.isTron = Object.hasOwn(provider, "trx");
+    this.isTron = isTronWeb(provider);
     this.helper = this.isTron
       ? new TronContractHelper<TronWeb>(
           multicallAddr,
