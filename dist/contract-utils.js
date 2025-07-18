@@ -42,25 +42,41 @@ const formatToEthAddress = function (address) {
     return address;
 };
 exports.formatToEthAddress = formatToEthAddress;
-const getMethodConfig = function (address, abi, method) {
+const getMethodConfig = function (address, method, _abi) {
     let interf;
-    try {
-        interf = new ethers_1.Interface(abi);
+    let methodFragment;
+    if (_abi) {
+        try {
+            interf = new ethers_1.Interface(_abi);
+            methodFragment = interf.getFunction(method);
+        }
+        catch (e) {
+            throw new errors_1.ABIFunctionNotProvidedError({ address, method });
+        }
     }
-    catch (e) {
+    else {
+        try {
+            let m = method.trim();
+            const item = m.startsWith("function") ? m : `function ${m}`;
+            methodFragment = ethers_1.FunctionFragment.from(item);
+            interf = new ethers_1.Interface([methodFragment]);
+        }
+        catch (e) {
+            throw new errors_1.ABIFunctionNotProvidedError({ address, method });
+        }
+    }
+    if (!methodFragment) {
         throw new errors_1.ABIFunctionNotProvidedError({ address, method });
     }
-    const fn = interf.getFunction(method);
-    if (!fn) {
-        throw new errors_1.ABIFunctionNotProvidedError({ address, method });
-    }
-    const signature = fn.format("minimal");
+    const abi = JSON.parse(interf.formatJson());
+    const signature = methodFragment.format("full");
     const selector = (0, ethers_1.dataSlice)((0, ethers_1.id)(signature), 0, 4);
     return {
+        abi,
         selector, // "0xa9059cbb"
-        signature, // "transfer(address,uint256)"
-        fragment: fn, // {type: "function", name: "transfer", inputs: [...], outputs:[...]}
-        name: method, // "transfer"
+        signature, // "function transfer(address receipt,uint256 amount) returns (bool)"
+        fragment: methodFragment, // {type: "function", name: "transfer", inputs: [...], outputs:[...]}
+        name: methodFragment.name, // "transfer"
     };
 };
 function transformContractCallArgs(contractCallArgs, network) {
@@ -71,17 +87,10 @@ function transformContractCallArgs(contractCallArgs, network) {
     if (!method) {
         throw new errors_1.ContractMethodNotProvidedError();
     }
-    if (!abi) {
-        let fragment = method.trim();
-        fragment = fragment.startsWith("function")
-            ? fragment
-            : `function ${fragment}`;
-        abi = [fragment];
-    }
-    const methodConfig = getMethodConfig(address, abi, method);
+    const methodConfig = getMethodConfig(address, method, abi);
     return {
         ...contractCallArgs,
-        abi: abi,
+        abi: methodConfig.abi,
         method: methodConfig,
         address: network === "tron"
             ? formatBase58Address(address)

@@ -2,6 +2,7 @@ import { TronWeb } from "tronweb";
 import {
   BytesLike,
   dataSlice,
+  Fragment,
   FunctionFragment,
   getAddress,
   id,
@@ -61,26 +62,42 @@ export const formatToEthAddress = function (address: string) {
 
 const getMethodConfig = function (
   address: string,
-  abi: InterfaceAbi,
-  method: string
+  method: string,
+  _abi?: InterfaceAbi
 ) {
   let interf: Interface;
-  try {
-    interf = new Interface(abi as any);
-  } catch (e) {
+  let methodFragment: FunctionFragment | null;
+  if (_abi) {
+    try {
+      interf = new Interface(_abi as any);
+      methodFragment = interf.getFunction(method);
+    } catch (e) {
+      throw new ABIFunctionNotProvidedError({ address, method });
+    }
+  } else {
+    try {
+      let m = method.trim();
+      const item = m.startsWith("function") ? m : `function ${m}`;
+      methodFragment = FunctionFragment.from(item);
+      interf = new Interface([methodFragment]);
+    } catch (e) {
+      throw new ABIFunctionNotProvidedError({ address, method });
+    }
+  }
+
+  if (!methodFragment) {
     throw new ABIFunctionNotProvidedError({ address, method });
   }
-  const fn = interf!.getFunction(method);
-  if (!fn) {
-    throw new ABIFunctionNotProvidedError({ address, method });
-  }
-  const signature = fn.format("minimal");
+
+  const abi = JSON.parse(interf.formatJson());
+  const signature = methodFragment.format("full");
   const selector = dataSlice(id(signature), 0, 4);
   return {
+    abi,
     selector, // "0xa9059cbb"
-    signature, // "transfer(address,uint256)"
-    fragment: fn, // {type: "function", name: "transfer", inputs: [...], outputs:[...]}
-    name: method, // "transfer"
+    signature, // "function transfer(address receipt,uint256 amount) returns (bool)"
+    fragment: methodFragment, // {type: "function", name: "transfer", inputs: [...], outputs:[...]}
+    name: methodFragment.name, // "transfer"
   };
 };
 
@@ -94,17 +111,10 @@ export function transformContractCallArgs<
   if (!method) {
     throw new ContractMethodNotProvidedError();
   }
-  if (!abi) {
-    let fragment = method.trim();
-    fragment = fragment.startsWith("function")
-      ? fragment
-      : `function ${fragment}`;
-    abi = [fragment];
-  }
-  const methodConfig = getMethodConfig(address, abi, method);
+  const methodConfig = getMethodConfig(address, method, abi);
   return {
     ...contractCallArgs,
-    abi: abi!,
+    abi: methodConfig.abi,
     method: methodConfig,
     address:
       network === "tron"
