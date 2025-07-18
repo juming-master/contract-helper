@@ -13,7 +13,7 @@ class ContractHelperBase {
     }
     async checkTransactionResult(txID, options = {}) {
         const checkOption = options.check ?? types_1.CheckTransactionType.Fast;
-        if (checkOption === types_1.CheckTransactionType.Final) {
+        if (checkOption === types_1.CheckTransactionType.Fast) {
             return await this.fastCheckTransactionResult(txID)
                 .then((transaction) => {
                 (0, helper_1.runPromiseWithCallback)(this.finalCheckTransactionResult(txID), options);
