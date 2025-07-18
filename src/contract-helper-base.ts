@@ -55,7 +55,7 @@ export abstract class ContractHelperBase<
   ) {
     const checkOption = options.check ?? CheckTransactionType.Fast;
     if (checkOption === CheckTransactionType.Fast) {
-      return await this.fastCheckTransactionResult(txID)
+      return this.fastCheckTransactionResult(txID)
         .then((transaction) => {
           runPromiseWithCallback<SimpleTransactionResult>(
             this.finalCheckTransactionResult(txID),
@@ -71,7 +71,7 @@ export abstract class ContractHelperBase<
           throw error;
         });
     }
-    return await this.finalCheckTransactionResult(txID)
+    return this.finalCheckTransactionResult(txID)
       .then((transaction) => {
         runPromiseWithCallback<SimpleTransactionResult>(
           Promise.resolve(transaction),

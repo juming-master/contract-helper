@@ -365,7 +365,7 @@ export class EthContractHelper<
     txId: string,
     confirmations: number
   ): Promise<TransactionReceipt> {
-    return await retry(
+    return retry(
       async () => {
         const receipt = await this.provider.getTransactionReceipt(txId);
         if (!receipt) {

@@ -361,7 +361,7 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         return txId;
     }
     async fastCheckTransactionResult(txId) {
-        return await (0, helper_1.retry)(async () => {
+        return (0, helper_1.retry)(async () => {
             const transaction = (await this.provider.trx.getTransaction(txId));
             if (!transaction.ret?.length) {
                 await (0, wait_1.default)(1000);

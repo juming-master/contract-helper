@@ -291,7 +291,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         return txId;
     }
     async checkReceipt(txId, confirmations) {
-        return await (0, helper_1.retry)(async () => {
+        return (0, helper_1.retry)(async () => {
             const receipt = await this.provider.getTransactionReceipt(txId);
             if (!receipt) {
                 await (0, wait_1.default)(1000);

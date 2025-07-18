@@ -442,7 +442,7 @@ export class TronContractHelper<
   }
 
   async fastCheckTransactionResult(txId: string) {
-    return await retry(
+    return retry(
       async () => {
         const transaction = (await this.provider.trx.getTransaction(
           txId
