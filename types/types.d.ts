@@ -4,6 +4,7 @@ import { ContractParamter, TransactionContract, TriggerSmartContractOptions } fr
 import { PromiseCallback } from "./helper";
 import { TransactionRequest as EthTransactionRequest } from "ethers";
 import { Transaction as TronTransactionRequest } from "tronweb/lib/esm/types";
+import { TransactionReceiptError } from "./errors";
 export { TransactionRequest as EthTransactionRequest, TransactionResponse as EthTransactionResponse, Provider as EthProvider, } from "ethers";
 export { Transaction as TronTransactionRequest, SignedTransaction as TronTransactionResponse, } from "tronweb/lib/esm/types";
 export type TronContractCallOptions = TriggerSmartContractOptions;
@@ -125,7 +126,7 @@ export declare enum CheckTransactionType {
 export type TransactionOption = {
     check?: CheckTransactionType;
     success?: (transactionInfo: SimpleTransactionResult) => void;
-    error?: (error: any) => void;
+    error?: (error: TransactionReceiptError) => void;
 };
 export interface ContractCallback<T> {
     success: (value: T) => Promise<any> | void;

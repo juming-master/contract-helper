@@ -380,6 +380,10 @@ export class EthContractHelper<
         if (!receipt.status) {
           throw new TransactionReceiptError("Transaction execute reverted", {
             txId: txId,
+            blockNumber:
+              confirmations >= 5
+                ? new BigNumber(receipt.blockNumber)
+                : undefined,
           });
         }
         return receipt;

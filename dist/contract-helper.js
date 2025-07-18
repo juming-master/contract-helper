@@ -106,6 +106,10 @@ class ContractHelper {
         };
         return this.send(from, sendTransaction, call);
     }
+    async sendAndCheckResult(from, sendTransaction, contractCall, options, callback) {
+        const txId = await this.sendWithOptions(from, sendTransaction, contractCall, options);
+        return this.checkTransactionResult(txId, callback);
+    }
     async checkTransactionResult(txID, options) {
         return this.helper.checkTransactionResult(txID, options);
     }

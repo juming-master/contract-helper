@@ -96,7 +96,7 @@ export class ContractHelper<Provider extends TronWeb | EthProvider> {
    *@deprecated use multicall instead.
    */
   getMultiContractValues<T>(multicallArgs: MultiCallArgs<Provider>[]) {
-    return this.multicall(multicallArgs);
+    return this.multicall<T>(multicallArgs);
   }
 
   /**
@@ -149,6 +149,25 @@ export class ContractHelper<Provider extends TronWeb | EthProvider> {
         : options.eth) as ContractCallArgs<Provider>["options"],
     };
     return this.send(from, sendTransaction, call);
+  }
+
+  async sendAndCheckResult(
+    from: string,
+    sendTransaction: SendTransaction<Provider>,
+    contractCall: Omit<ContractCallArgs<Provider>, "options">,
+    options: {
+      trx: TronContractCallOptions;
+      eth: EthContractCallOptions;
+    },
+    callback?: TransactionOption
+  ) {
+    const txId = await this.sendWithOptions(
+      from,
+      sendTransaction,
+      contractCall,
+      options
+    );
+    return this.checkTransactionResult(txId, callback);
   }
 
   async checkTransactionResult(

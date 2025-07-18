@@ -305,6 +305,9 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             if (!receipt.status) {
                 throw new errors_1.TransactionReceiptError("Transaction execute reverted", {
                     txId: txId,
+                    blockNumber: confirmations >= 5
+                        ? new bignumber_js_1.default(receipt.blockNumber)
+                        : undefined,
                 });
             }
             return receipt;

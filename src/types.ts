@@ -14,6 +14,7 @@ import {
   SignedTransaction as TronTransactionResponse,
   Transaction as TronTransactionRequest,
 } from "tronweb/lib/esm/types";
+import { TransactionReceiptError } from "./errors";
 
 export {
   TransactionRequest as EthTransactionRequest,
@@ -181,7 +182,7 @@ export enum CheckTransactionType {
 export type TransactionOption = {
   check?: CheckTransactionType;
   success?: (transactionInfo: SimpleTransactionResult) => void;
-  error?: (error: any) => void;
+  error?: (error: TransactionReceiptError) => void;
 };
 
 export interface ContractCallback<T> {

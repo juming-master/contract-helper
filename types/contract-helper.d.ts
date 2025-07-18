@@ -40,7 +40,7 @@ export declare class ContractHelper<Provider extends TronWeb | EthProvider> {
     /**
      *@deprecated use multicall instead.
      */
-    getMultiContractValues<T>(multicallArgs: MultiCallArgs<Provider>[]): Promise<unknown>;
+    getMultiContractValues<T>(multicallArgs: MultiCallArgs<Provider>[]): Promise<T>;
     /**
      * Use Multicall v2 to query with multiple arguments
      */
@@ -63,6 +63,10 @@ export declare class ContractHelper<Provider extends TronWeb | EthProvider> {
         trx: TronContractCallOptions;
         eth: EthContractCallOptions;
     }): Promise<string>;
+    sendAndCheckResult(from: string, sendTransaction: SendTransaction<Provider>, contractCall: Omit<ContractCallArgs<Provider>, "options">, options: {
+        trx: TronContractCallOptions;
+        eth: EthContractCallOptions;
+    }, callback?: TransactionOption): Promise<SimpleTransactionResult>;
     checkTransactionResult(txID: string, options?: TransactionOption): Promise<SimpleTransactionResult>;
     /**
      * Return the pending call length.
