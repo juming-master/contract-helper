@@ -54,7 +54,7 @@ export abstract class ContractHelperBase<
     options: TransactionOption = {}
   ) {
     const checkOption = options.check ?? CheckTransactionType.Fast;
-    if (checkOption === CheckTransactionType.Final) {
+    if (checkOption === CheckTransactionType.Fast) {
       return await this.fastCheckTransactionResult(txID)
         .then((transaction) => {
           runPromiseWithCallback<SimpleTransactionResult>(
