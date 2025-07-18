@@ -15,6 +15,7 @@ class ContractHelper {
     pendingQueries = [];
     debounceExecuteLazyCalls;
     multicallMaxPendingLength;
+    isTron;
     /**
      * @param options {
      *  provider: TronWeb | Provider(ethers.js);
@@ -33,6 +34,7 @@ class ContractHelper {
         const multicallAddr = options.multicallV2Address;
         const multicallLazyQueryTimeout = options.multicallLazyQueryTimeout ?? 1000;
         this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
+        this.isTron = provider instanceof tronweb_1.TronWeb;
         this.helper =
             provider instanceof tronweb_1.TronWeb
                 ? new tron_1.TronContractHelper(multicallAddr, provider, options.formatValue)
@@ -81,13 +83,28 @@ class ContractHelper {
      * @param from signer address
      * @param sendTransaction sign transaction function.
      * @param contractCall contract call arguments.
-     * @param options execute callback.
      */
     async send(from, sendTransaction, contractCall) {
         const txId = await this.helper.send(from, 
         // @ts-ignore
         sendTransaction, contractCall);
         return txId;
+    }
+    /**
+     * Sign the transaction and send it to the network with trx&eth options.
+     * @param from signer address
+     * @param sendTransaction sign transaction function.
+     * @param contractCall contract call arguments.
+     * @param options includes trx: {feeLimit,tokenValue...} and eth: {gasPrice,...}
+     */
+    async sendWithOptions(from, sendTransaction, contractCall, options) {
+        const call = {
+            ...contractCall,
+            options: (this.isTron
+                ? options.trx
+                : options.eth),
+        };
+        return this.send(from, sendTransaction, call);
     }
     async checkTransactionResult(txID, options) {
         return this.helper.checkTransactionResult(txID, options);

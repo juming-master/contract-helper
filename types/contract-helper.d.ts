@@ -1,5 +1,5 @@
 import { TronWeb } from "tronweb";
-import { ContractCallArgs, MultiCallArgs, TransactionOption, ContractQuery, ContractQueryTrigger, ContractQueryCallback, SendTransaction, SimpleTransactionResult } from "./types";
+import { ContractCallArgs, MultiCallArgs, TransactionOption, ContractQuery, ContractQueryTrigger, ContractQueryCallback, SendTransaction, SimpleTransactionResult, TronContractCallOptions, EthContractCallOptions } from "./types";
 import { ContractHelperOptions } from "./types";
 import { Provider as EthProvider } from "ethers";
 export declare class ContractHelper<Provider extends TronWeb | EthProvider> {
@@ -7,6 +7,7 @@ export declare class ContractHelper<Provider extends TronWeb | EthProvider> {
     private pendingQueries;
     private debounceExecuteLazyCalls;
     private multicallMaxPendingLength;
+    private isTron;
     /**
      * @param options {
      *  provider: TronWeb | Provider(ethers.js);
@@ -49,9 +50,19 @@ export declare class ContractHelper<Provider extends TronWeb | EthProvider> {
      * @param from signer address
      * @param sendTransaction sign transaction function.
      * @param contractCall contract call arguments.
-     * @param options execute callback.
      */
     send(from: string, sendTransaction: SendTransaction<Provider>, contractCall: ContractCallArgs<Provider>): Promise<string>;
+    /**
+     * Sign the transaction and send it to the network with trx&eth options.
+     * @param from signer address
+     * @param sendTransaction sign transaction function.
+     * @param contractCall contract call arguments.
+     * @param options includes trx: {feeLimit,tokenValue...} and eth: {gasPrice,...}
+     */
+    sendWithOptions(from: string, sendTransaction: SendTransaction<Provider>, contractCall: Omit<ContractCallArgs<Provider>, "options">, options: {
+        trx: TronContractCallOptions;
+        eth: EthContractCallOptions;
+    }): Promise<string>;
     checkTransactionResult(txID: string, options?: TransactionOption): Promise<SimpleTransactionResult>;
     /**
      * Return the pending call length.
