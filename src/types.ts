@@ -31,7 +31,7 @@ export type TronContractCallOptions = TriggerSmartContractOptions;
 export type EthContractCallOptions = Omit<
   TransactionLike,
   "to" | "from" | "nonce" | "data" | "chainId" | "type"
->;
+  >;
 
 export interface ContractCallArgs<Provider extends TronWeb | EthProvider> {
   address: string;

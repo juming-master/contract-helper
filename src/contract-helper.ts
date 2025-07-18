@@ -22,7 +22,7 @@ import { EthContractHelper } from "./eth";
 import { Provider as EthProvider } from "ethers";
 import { TriggerSmartContractOptions } from "tronweb/lib/esm/types";
 
-export class ContractHelper<Provider extends TronWeb | EthProvider> {
+export class ContractHelper<Provider extends TronWeb | EthProvider = any> {
   private helper: TronContractHelper<TronWeb> | EthContractHelper<EthProvider>;
   private pendingQueries: ContractQuery<Provider>[] = [];
   private debounceExecuteLazyCalls: DebouncedFunction<() => any>;

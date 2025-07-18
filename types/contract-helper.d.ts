@@ -2,7 +2,7 @@ import { TronWeb } from "tronweb";
 import { ContractCallArgs, MultiCallArgs, TransactionOption, ContractQuery, ContractQueryTrigger, ContractQueryCallback, SendTransaction, SimpleTransactionResult, TronContractCallOptions, EthContractCallOptions } from "./types";
 import { ContractHelperOptions } from "./types";
 import { Provider as EthProvider } from "ethers";
-export declare class ContractHelper<Provider extends TronWeb | EthProvider> {
+export declare class ContractHelper<Provider extends TronWeb | EthProvider = any> {
     private helper;
     private pendingQueries;
     private debounceExecuteLazyCalls;
