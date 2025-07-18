@@ -101,8 +101,8 @@ class ContractHelper {
         const call = {
             ...contractCall,
             options: (this.isTron
-                ? options.trx
-                : options.eth),
+                ? options?.trx
+                : options?.eth),
         };
         return this.send(from, sendTransaction, call);
     }

@@ -137,16 +137,16 @@ export class ContractHelper<Provider extends TronWeb | EthProvider> {
     from: string,
     sendTransaction: SendTransaction<Provider>,
     contractCall: Omit<ContractCallArgs<Provider>, "options">,
-    options: {
-      trx: TronContractCallOptions;
-      eth: EthContractCallOptions;
+    options?: {
+      trx?: TronContractCallOptions;
+      eth?: EthContractCallOptions;
     }
   ) {
     const call: ContractCallArgs<Provider> = {
       ...contractCall,
       options: (this.isTron
-        ? options.trx
-        : options.eth) as ContractCallArgs<Provider>["options"],
+        ? options?.trx
+        : options?.eth) as ContractCallArgs<Provider>["options"],
     };
     return this.send(from, sendTransaction, call);
   }
@@ -155,9 +155,9 @@ export class ContractHelper<Provider extends TronWeb | EthProvider> {
     from: string,
     sendTransaction: SendTransaction<Provider>,
     contractCall: Omit<ContractCallArgs<Provider>, "options">,
-    options: {
-      trx: TronContractCallOptions;
-      eth: EthContractCallOptions;
+    options?: {
+      trx?: TronContractCallOptions;
+      eth?: EthContractCallOptions;
     },
     callback?: TransactionOption
   ) {

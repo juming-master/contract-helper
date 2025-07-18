@@ -59,13 +59,13 @@ export declare class ContractHelper<Provider extends TronWeb | EthProvider> {
      * @param contractCall contract call arguments.
      * @param options includes trx: {feeLimit,tokenValue...} and eth: {gasPrice,...}
      */
-    sendWithOptions(from: string, sendTransaction: SendTransaction<Provider>, contractCall: Omit<ContractCallArgs<Provider>, "options">, options: {
-        trx: TronContractCallOptions;
-        eth: EthContractCallOptions;
+    sendWithOptions(from: string, sendTransaction: SendTransaction<Provider>, contractCall: Omit<ContractCallArgs<Provider>, "options">, options?: {
+        trx?: TronContractCallOptions;
+        eth?: EthContractCallOptions;
     }): Promise<string>;
-    sendAndCheckResult(from: string, sendTransaction: SendTransaction<Provider>, contractCall: Omit<ContractCallArgs<Provider>, "options">, options: {
-        trx: TronContractCallOptions;
-        eth: EthContractCallOptions;
+    sendAndCheckResult(from: string, sendTransaction: SendTransaction<Provider>, contractCall: Omit<ContractCallArgs<Provider>, "options">, options?: {
+        trx?: TronContractCallOptions;
+        eth?: EthContractCallOptions;
     }, callback?: TransactionOption): Promise<SimpleTransactionResult>;
     checkTransactionResult(txID: string, options?: TransactionOption): Promise<SimpleTransactionResult>;
     /**
