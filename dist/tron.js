@@ -329,9 +329,9 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         return this.buildUpAggregateResponse(calls, contractResponse);
     }
     async call(contractCallArgs) {
-        const { address, abi, method, parameters = [], } = (0, contract_utils_1.transformContractCallArgs)(contractCallArgs, "tron");
+        const { address, abi, method, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractCallArgs, "tron");
         const contract = this.provider.contract(abi, address);
-        const rawResult = await contract[method.name](...parameters).call();
+        const rawResult = await contract[method.name](...args).call();
         const result = this.handleContractValue(rawResult, method.fragment);
         return result;
     }
@@ -350,16 +350,14 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         return broadcast.transaction.txID;
     }
     async send(from, sendTransaction, contractOption) {
-        const { address, method, options, parameters = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "tron");
+        const { address, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "tron");
         const functionFragment = method.fragment;
         const provider = this.provider;
         const transaction = await provider.transactionBuilder.triggerSmartContract(address, functionFragment.format("sighash"), options ? options : {}, functionFragment.inputs.map((el, i) => ({
             type: el.type,
-            value: parameters[i],
+            value: args[i],
         })), from);
-        let txId = await sendTransaction(
-        // @ts-ignore
-        transaction.transaction, this.provider, true);
+        let txId = await sendTransaction(transaction.transaction, this.provider, "tron");
         return txId;
     }
     async fastCheckTransactionResult(txId) {

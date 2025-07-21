@@ -6,10 +6,10 @@ exports.transformContractCallArgs = transformContractCallArgs;
 exports.findFragmentFromAbi = findFragmentFromAbi;
 exports.buildAggregateCall = buildAggregateCall;
 exports.buildUpAggregateResponse = buildUpAggregateResponse;
-const tronweb_1 = require("tronweb");
 const ethers_1 = require("ethers");
 const helper_1 = require("./helper");
 const errors_1 = require("./errors");
+const tronweb_1 = require("tronweb");
 /**
  * Convert a Tron hex address or base58 address to a base58 address.
  */
@@ -123,7 +123,7 @@ function buildAggregateCall(multiCallArgs, encodeFunctionData, network) {
             abi: transformedArgs.abi,
             call: {
                 methodName: transformedArgs.method.name,
-                methodParameters: transformedArgs.parameters || [],
+                methodParameters: transformedArgs.args || [],
             },
         };
         const fragment = findFragmentFromAbi(contractCall);
@@ -156,7 +156,7 @@ function buildUpAggregateResponse(multiCallArgs, response, decodeFunctionData, h
             abi: transformedArgs.abi,
             call: {
                 methodName: transformedArgs.method.name,
-                methodParameters: transformedArgs.parameters || [],
+                methodParameters: transformedArgs.args || [],
             },
         };
         const returnObjectResult = {

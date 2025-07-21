@@ -1,21 +1,16 @@
-import { AggregateCall, AggregateContractResponse, ContractCallArgs, MultiCallArgs as MultiCallArgs, SimpleTransactionResult, TransactionOption, SendTransaction } from "./types";
-import { TronWeb } from "tronweb";
-import { Provider as EthProvider } from "ethers";
+import { AggregateCall, AggregateContractResponse, ContractCallArgs, MultiCallArgs as MultiCallArgs, SimpleTransactionResult, TransactionOption, SendTransaction, ChainType, ContractSendArgs } from "./types";
 export interface Contract {
     multicall(calls: AggregateCall[]): AggregateContractResponse;
 }
-export declare abstract class ContractHelperBase<Provider extends TronWeb | EthProvider> {
+export declare abstract class ContractHelperBase<Chain extends ChainType> {
     protected multicallAddress: string;
     /**
      * @param multicallAddress MulticallV2 contract address
      */
     constructor(multicallAddress: string);
-    /**
-     * @param calls
-     */
-    abstract multicall<T>(calls: MultiCallArgs<Provider>[]): Promise<T>;
-    abstract call<T>(contractOption: ContractCallArgs<Provider>): Promise<T>;
-    abstract send(from: string, signTransaction: SendTransaction<Provider>, contractOption: ContractCallArgs<Provider>): Promise<string>;
+    abstract call<T>(contractOption: ContractCallArgs): Promise<T>;
+    abstract multicall<T>(calls: MultiCallArgs[]): Promise<T>;
+    abstract send(from: string, sendFn: SendTransaction<Chain>, args: ContractSendArgs<Chain>): Promise<string>;
     abstract fastCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
     abstract finalCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
     checkTransactionResult(txID: string, options?: TransactionOption): Promise<SimpleTransactionResult>;

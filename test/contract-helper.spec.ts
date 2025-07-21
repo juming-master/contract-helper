@@ -2,18 +2,15 @@ import { expect } from "chai";
 import { BigNumber, TronWeb } from "tronweb";
 import ContractHelper from "../src/contract-helper";
 import {
-  ContractCallArgs,
-  EthTransactionRequest,
-  formatToEthAddress,
-  TronTransactionRequest,
+  ChainType,
+  EvmSendTransaction,
+  SendTransaction,
+  TronSendTransaction,
 } from "../src";
 import { getAddress, hexlify, keccak256, toUtf8Bytes, Wallet } from "ethers";
 import { JsonRpcProvider } from "ethers";
-import { Provider } from "ethers";
 import { config } from "dotenv";
 import sinon from "sinon";
-import { EthContractHelper } from "../src/eth";
-import { TronContractHelper } from "../src/tron";
 config();
 
 const FULL_NODE = "https://nile.trongrid.io";
@@ -76,38 +73,43 @@ const ABI = [
   },
 ];
 
-for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
+const tronSend: TronSendTransaction = async function (tx, provider) {
+  const signedTransaction = await tronWeb.trx.sign(tx, PRIVATE_KEY);
+  const response = await provider.trx.sendRawTransaction(signedTransaction);
+  return response.transaction.txID;
+};
+
+const evmSend: EvmSendTransaction = async function (tx, provider) {
+  const signedTx = await ethWallet.signTransaction(tx);
+  const response = await provider.broadcastTransaction(signedTx);
+  return response.hash;
+};
+
+for (let { chain, from, erc20, multicallV2, multiTypes, send, provider } of [
   {
-    name: "tron",
+    chain: "tron" as ChainType,
     wallet: tronWeb,
     provider: tronWeb,
     from: tronWeb.address.fromPrivateKey(PRIVATE_KEY) as string,
     erc20: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf", // Tron USDT, https://nileex.io/join/getJoinPage get trx,usdt
     multicallV2: "TZHL5DTcqr6r3uugk2fgtZKHwe4Yp2bsQi",
     multiTypes: "TUqZGqv18iusqsC84jsHkFD71VWTobe3k8",
-    send: async (tx: TronTransactionRequest, provider: TronWeb) => {
-      const signedTransaction = await tronWeb.trx.sign(tx, PRIVATE_KEY);
-      const response = await provider.trx.sendRawTransaction(signedTransaction);
-      return response.transaction.txID;
-    },
+    send: tronSend as SendTransaction<ChainType>,
   },
   {
-    name: "eth",
+    chain: "evm" as ChainType,
     wallet: ethWallet,
     provider: ethProvider,
     from: ethWallet.address,
     erc20: "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238", // USDC Sepolia, https://faucet.circle.com
     multicallV2: "0xf99CC4c088fdf4b2d5Fec7C4a413C147d7CB0cdF",
     multiTypes: "0x26575Ef5f2Ca0d2F3168Fd691526A537d4405040",
-    send: async (tx: EthTransactionRequest, provider: Provider) => {
-      const signedTx = await ethWallet.signTransaction(tx);
-      const response = await provider.broadcastTransaction(signedTx);
-      return response.hash;
-    },
+    send: evmSend as SendTransaction<ChainType>,
   },
 ]) {
-  describe(`${name.toUpperCase()} (with real provider)`, function () {
-    const helper = new ContractHelper({
+  describe(`${chain.toUpperCase()} (with real provider)`, function () {
+    const helper = new ContractHelper<ChainType>({
+      chain,
       provider,
       multicallV2Address: multicallV2,
     });
@@ -212,7 +214,8 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
     });
 
     it("should read uint256 as bigint in one multicall", async () => {
-      const helper = new ContractHelper({
+      const helper = new ContractHelper<ChainType>({
+        chain,
         provider,
         multicallV2Address: multicallV2,
         formatValue: {
@@ -232,7 +235,8 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
     });
 
     it("should read address as hex and checksum in two multicall", async () => {
-      const helper = new ContractHelper({
+      const helper = new ContractHelper<ChainType>({
+        chain,
         provider,
         multicallV2Address: multicallV2,
         formatValue: {
@@ -249,13 +253,14 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
           method: "getOwner()",
         },
       ]);
-      name === "eth"
+      chain === "evm"
         ? expect(result.owner).to.be.equal(result.owner.toLowerCase())
         : expect(result.owner).to.be.equal(
             TronWeb.address.toChecksumAddress(result.owner).toLowerCase()
           );
 
-      const result2 = await new ContractHelper({
+      const result2 = await new ContractHelper<ChainType>({
+        chain,
         provider,
         multicallV2Address: multicallV2,
         formatValue: {
@@ -272,7 +277,7 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
         },
       ]);
       expect(result2.owner).to.be.equal(
-        name === "tron"
+        chain === "tron"
           ? TronWeb.address.toChecksumAddress(result2.owner)
           : getAddress(result2.owner)
       );
@@ -280,7 +285,8 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
 
     it("should delay execution by multicallLazyQueryTimeout", async function () {
       const clock = sinon.useFakeTimers();
-      const helper = new ContractHelper({
+      const helper = new ContractHelper<ChainType>({
+        chain,
         provider,
         multicallV2Address: multicallV2,
         multicallMaxLazyCallsLength: 3,
@@ -304,7 +310,8 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
     });
 
     it("should trigger immediately when multicallMaxPendingLength is exceeded", async function () {
-      const helper = new ContractHelper({
+      const helper = new ContractHelper<ChainType>({
+        chain,
         provider,
         multicallV2Address: multicallV2,
         multicallMaxLazyCallsLength: 3,
@@ -328,7 +335,8 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
     });
 
     it("should resolve pending lazyCall promises immediately after executeLazyCalls", async () => {
-      const helper = new ContractHelper({
+      const helper = new ContractHelper<ChainType>({
+        chain,
         provider,
         multicallV2Address: multicallV2,
         multicallMaxLazyCallsLength: 3,
@@ -352,7 +360,8 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
     });
 
     it("should auto-execute lazy calls after multicallLazyQueryTimeout", async () => {
-      const helper = new ContractHelper({
+      const helper = new ContractHelper<ChainType>({
+        chain,
         provider,
         multicallV2Address: multicallV2,
         multicallLazyQueryTimeout: 100, // 100ms timeout
@@ -404,7 +413,7 @@ for (let { name, from, erc20, multicallV2, multiTypes, send, provider } of [
           },
         ],
         method: "approve",
-        parameters: [
+        args: [
           "0x67940FB0e23A1c91A35a71fc2C8D8b17413fB1d2",
           new BigNumber(1).shiftedBy(18).toFixed(),
         ],

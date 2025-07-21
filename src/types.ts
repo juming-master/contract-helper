@@ -1,4 +1,4 @@
-import { InterfaceAbi, TransactionLike, Provider as EthProvider } from "ethers";
+import { InterfaceAbi, TransactionLike, Provider as EvmProvider } from "ethers";
 import { TronWeb as TronProvider } from "tronweb";
 import BigNumber from "bignumber.js";
 import {
@@ -7,15 +7,15 @@ import {
   TriggerSmartContractOptions,
 } from "tronweb/lib/esm/types";
 import { PromiseCallback } from "./helper";
-import { TransactionRequest as EthTransactionRequest } from "ethers";
+import { TransactionRequest as EvmTransactionRequest } from "ethers";
 import { Transaction as TronTransactionRequest } from "tronweb/lib/esm/types";
 import { TransactionReceiptError } from "./errors";
 
 export {
-  TransactionRequest as EthTransactionRequest,
-  TransactionResponse as EthTransactionResponse,
-  Provider as EthProvider,
-  Signer as EthSigner,
+  TransactionRequest as EvmTransactionRequest,
+  TransactionResponse as EvmTransactionResponse,
+  Provider as EvmProvider,
+  Signer as EvmSigner,
 } from "ethers";
 
 export {
@@ -27,27 +27,30 @@ export { TronWeb as TronProvider } from "tronweb";
 export { TronWeb as TronSigner } from "tronweb";
 
 export type TronContractCallOptions = TriggerSmartContractOptions;
-export type EthContractCallOptions = Omit<
+export type EvmContractCallOptions = Omit<
   TransactionLike,
   "to" | "from" | "nonce" | "data" | "chainId" | "type"
 >;
 
-export interface ContractCallArgs<Provider extends TronProvider | EthProvider> {
+export type ChainType = "tron" | "evm";
+
+export interface ContractCallArgs {
   address: string;
   abi?: InterfaceAbi;
   method: string;
-  parameters?: Array<any>;
-  options?: Provider extends TronProvider
-    ? TronContractCallOptions
-    : EthContractCallOptions;
+  args?: Array<any>;
 }
 
-export type MultiCallArgs<Provider extends TronProvider | EthProvider> = Omit<
-  ContractCallArgs<Provider>,
-  "options"
-> & {
+export type MultiCallArgs = Omit<ContractCallArgs, "options"> & {
   key: string;
 };
+
+export interface ContractSendArgs<Chain extends ChainType>
+  extends ContractCallArgs {
+  options?: Chain extends "tron"
+    ? TronContractCallOptions
+    : EvmContractCallOptions;
+}
 
 export interface Call {
   /**
@@ -137,31 +140,16 @@ export interface AggregateResponse {
   }>;
 }
 
-export interface EthSendTransaction {
+export interface SendTransaction<Chain extends ChainType> {
   (
-    tx: EthTransactionRequest,
-    provider: EthProvider,
-    isTron: false
+    tx: Chain extends "tron" ? TronTransactionRequest : EvmTransactionRequest,
+    provider: Chain extends "tron" ? TronProvider : EvmProvider,
+    chain: Chain
   ): Promise<string>;
 }
 
-export interface TronSendTransaction {
-  (
-    tx: TronTransactionRequest,
-    provider: TronProvider,
-    isTron: true
-  ): Promise<string>;
-}
-
-export interface SendTransaction<Provider extends TronProvider | EthProvider> {
-  (
-    tx: Provider extends TronProvider
-      ? TronTransactionRequest
-      : EthTransactionRequest,
-    provider: Provider extends TronProvider ? TronProvider : EthProvider,
-    isTron: Provider extends TronProvider ? true : false
-  ): Promise<string>;
-}
+export type EvmSendTransaction = SendTransaction<"evm">;
+export type TronSendTransaction = SendTransaction<"tron">;
 
 export const CONTRACT_SUCCESS = "SUCCESS";
 
@@ -204,11 +192,8 @@ export interface ContractCallback<T> {
   error?: (error: any) => void;
 }
 
-export interface ContractQuery<
-  Provider extends TronProvider | EthProvider,
-  T = any
-> {
-  query: MultiCallArgs<Provider>;
+export interface ContractQuery<T = any> {
+  query: MultiCallArgs;
   callback?: ContractCallback<T>;
 }
 
@@ -226,14 +211,12 @@ export interface EthFormatValue {
   uint?: "bigint" | "bignumber"; //default bignumber
 }
 
-export type ContractHelperOptions<Provider extends TronProvider | EthProvider> =
-  {
-    provider: Provider;
-    multicallV2Address: string;
-    multicallLazyQueryTimeout?: number;
-    multicallMaxLazyCallsLength?: number;
-    simulateBeforeSend?: boolean;
-    formatValue?: Provider extends TronProvider
-      ? TrxFormatValue
-      : EthFormatValue;
-  };
+export type ContractHelperOptions<Chain extends ChainType> = {
+  chain: Chain;
+  provider: Chain extends "tron" ? TronProvider : EvmProvider;
+  multicallV2Address: string;
+  multicallLazyQueryTimeout?: number;
+  multicallMaxLazyCallsLength?: number;
+  simulateBeforeSend?: boolean;
+  formatValue?: Chain extends "tron" ? TrxFormatValue : EthFormatValue;
+};

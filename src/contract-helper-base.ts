@@ -8,18 +8,16 @@ import {
   TransactionOption,
   SendTransaction,
   CheckTransactionType,
+  ChainType,
+  ContractSendArgs,
 } from "./types";
 import { TransactionReceiptError } from "./errors";
-import { TronWeb } from "tronweb";
-import { Provider as EthProvider } from "ethers";
 
 export interface Contract {
   multicall(calls: AggregateCall[]): AggregateContractResponse;
 }
 
-export abstract class ContractHelperBase<
-  Provider extends TronWeb | EthProvider
-> {
+export abstract class ContractHelperBase<Chain extends ChainType> {
   protected multicallAddress: string;
 
   /**
@@ -29,22 +27,20 @@ export abstract class ContractHelperBase<
     this.multicallAddress = multicallAddress;
   }
 
-  /**
-   * @param calls
-   */
-  abstract multicall<T>(calls: MultiCallArgs<Provider>[]): Promise<T>;
+  abstract call<T>(contractOption: ContractCallArgs): Promise<T>;
 
-  abstract call<T>(contractOption: ContractCallArgs<Provider>): Promise<T>;
+  abstract multicall<T>(calls: MultiCallArgs[]): Promise<T>;
 
   abstract send(
     from: string,
-    signTransaction: SendTransaction<Provider>,
-    contractOption: ContractCallArgs<Provider>
+    sendFn: SendTransaction<Chain>,
+    args: ContractSendArgs<Chain>
   ): Promise<string>;
 
   abstract fastCheckTransactionResult(
     txID: string
   ): Promise<SimpleTransactionResult>;
+
   abstract finalCheckTransactionResult(
     txID: string
   ): Promise<SimpleTransactionResult>;

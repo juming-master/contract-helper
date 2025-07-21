@@ -1,12 +1,12 @@
 import {
   AggregateContractResponse,
   ContractCallArgs,
+  ContractSendArgs,
   EthFormatValue,
-  EthProvider,
+  EvmProvider,
   MultiCallArgs,
   SendTransaction,
   SimpleTransactionResult,
-  TronProvider,
 } from "./types";
 import {
   buildAggregateCall,
@@ -18,7 +18,6 @@ import wait from "wait";
 import { ContractHelperBase } from "./contract-helper-base";
 import {
   Contract,
-  FeeData,
   FunctionFragment,
   Interface,
   TransactionReceipt,
@@ -195,16 +194,14 @@ const ABI = [
   },
 ];
 
-export class EthContractHelper<
-  Provider extends TronProvider | EthProvider
-> extends ContractHelperBase<Provider> {
-  private provider: EthProvider;
+export class EthContractHelper extends ContractHelperBase<"evm"> {
+  private provider: EvmProvider;
   private simulate: boolean;
   private formatValueType: EthFormatValue;
 
   constructor(
     multicallContractAddress: string,
-    provider: EthProvider,
+    provider: EvmProvider,
     simulate: boolean,
     formatValue: EthFormatValue
   ) {
@@ -214,23 +211,23 @@ export class EthContractHelper<
     this.formatValueType = formatValue;
   }
 
-  private buildAggregateCall(multiCallArgs: MultiCallArgs<Provider>[]) {
-    return buildAggregateCall<Provider>(
+  private buildAggregateCall(multiCallArgs: MultiCallArgs[]) {
+    return buildAggregateCall(
       multiCallArgs,
       function (fragment: FunctionFragment, values?: ReadonlyArray<any>) {
         const iface = new Interface([fragment]);
         const encodedData = iface.encodeFunctionData(fragment, values);
         return encodedData;
       },
-      "eth"
+      "evm"
     );
   }
 
   private buildUpAggregateResponse<T>(
-    multiCallArgs: MultiCallArgs<Provider>[],
+    multiCallArgs: MultiCallArgs[],
     response: AggregateContractResponse
   ) {
-    return buildUpAggregateResponse<Provider, T>(
+    return buildUpAggregateResponse<T>(
       multiCallArgs,
       response,
       function (fragment, data) {
@@ -241,7 +238,7 @@ export class EthContractHelper<
       (value, fragment) => {
         return this.handleContractValue(value, fragment);
       },
-      "eth"
+      "evm"
     );
   }
 
@@ -286,7 +283,7 @@ export class EthContractHelper<
    * Execute the multicall contract call
    * @param calls The calls
    */
-  public async multicall<T>(calls: MultiCallArgs<Provider>[]) {
+  public async multicall<T>(calls: MultiCallArgs[]) {
     const multicallContract = new Contract(
       this.multicallAddress,
       ABI,
@@ -303,35 +300,35 @@ export class EthContractHelper<
     return this.buildUpAggregateResponse<T>(calls, response);
   }
 
-  public async call<T>(contractCallArgs: ContractCallArgs<Provider>) {
+  public async call<T>(contractCallArgs: ContractCallArgs) {
     const {
       address,
       abi,
       method,
-      parameters = [],
-    } = transformContractCallArgs(contractCallArgs, "eth");
+      args = [],
+    } = transformContractCallArgs(contractCallArgs, "evm");
     const contract = new Contract(address, abi, this.provider);
-    const rawResult = await contract[method.name](...parameters);
+    const rawResult = await contract[method.name](...args);
     const result = this.handleContractValue(rawResult, method.fragment);
     return result as T;
   }
 
   async send(
     from: string,
-    sendTransaction: SendTransaction<Provider>,
-    contractOption: ContractCallArgs<Provider>
+    sendTransaction: SendTransaction<"evm">,
+    contractOption: ContractSendArgs<"evm">
   ) {
     const {
       address,
       abi,
       method,
       options,
-      parameters = [],
-    } = transformContractCallArgs(contractOption, "eth");
+      args = [],
+    } = transformContractCallArgs<"evm">(contractOption, "evm");
     const chainId = (await this.provider.getNetwork()).chainId;
     const nonce = await this.provider.getTransactionCount(from);
     const interf = new Interface(abi);
-    const data = interf.encodeFunctionData(method.fragment, parameters);
+    const data = interf.encodeFunctionData(method.fragment, args);
     const tx: any = {
       ...options,
       to: address,
@@ -364,12 +361,7 @@ export class EthContractHelper<
         throw err;
       }
     }
-    const txId = await sendTransaction(
-      { ...tx },
-      // @ts-ignore
-      this.provider,
-      false
-    );
+    const txId = await sendTransaction({ ...tx }, this.provider, "evm");
     return txId;
   }
 

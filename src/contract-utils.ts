@@ -1,8 +1,6 @@
-import { TronWeb } from "tronweb";
 import {
   BytesLike,
   dataSlice,
-  Fragment,
   FunctionFragment,
   getAddress,
   id,
@@ -13,13 +11,13 @@ import {
 import {
   AggregateCall,
   AggregateContractResponse,
+  ChainType,
   ContractCall,
   ContractCallArgs,
   ContractCallResults,
   ContractCallReturnContext,
-  EthProvider,
+  ContractSendArgs,
   MultiCallArgs,
-  TronProvider,
 } from "./types";
 import { deepClone } from "./helper";
 import {
@@ -27,6 +25,7 @@ import {
   ContractAddressNotProvidedError,
   ContractMethodNotProvidedError,
 } from "./errors";
+import { TronWeb } from "tronweb";
 
 /**
  * Convert a Tron hex address or base58 address to a base58 address.
@@ -102,9 +101,10 @@ const getMethodConfig = function (
   };
 };
 
-export function transformContractCallArgs<
-  Provider extends TronProvider | EthProvider
->(contractCallArgs: ContractCallArgs<Provider>, network: "tron" | "eth") {
+export function transformContractCallArgs<Chain extends ChainType>(
+  contractCallArgs: ContractSendArgs<Chain>,
+  network: ChainType
+) {
   let { address, abi, method } = contractCallArgs;
   if (!address) {
     throw new ContractAddressNotProvidedError();
@@ -142,12 +142,12 @@ export function findFragmentFromAbi<T>(
  * Build aggregate call context
  * @param multiCallArgs The contract call contexts
  */
-export function buildAggregateCall<Provider extends TronWeb | EthProvider>(
-  multiCallArgs: MultiCallArgs<Provider>[],
+export function buildAggregateCall(
+  multiCallArgs: MultiCallArgs[],
   encodeFunctionData: {
     (fragment: FunctionFragment, values: any[]): string;
   },
-  network: "tron" | "eth"
+  network: ChainType
 ) {
   const aggregateCalls: AggregateCall[] = [];
 
@@ -162,7 +162,7 @@ export function buildAggregateCall<Provider extends TronWeb | EthProvider>(
       abi: transformedArgs.abi,
       call: {
         methodName: transformedArgs.method.name,
-        methodParameters: transformedArgs.parameters || [],
+        methodParameters: transformedArgs.args || [],
       },
     };
     const fragment = findFragmentFromAbi(contractCall);
@@ -185,17 +185,14 @@ export function buildAggregateCall<Provider extends TronWeb | EthProvider>(
   return aggregateCalls;
 }
 
-export function buildUpAggregateResponse<
-  Provider extends TronWeb | EthProvider,
-  T
->(
-  multiCallArgs: MultiCallArgs<Provider>[],
+export function buildUpAggregateResponse<T>(
+  multiCallArgs: MultiCallArgs[],
   response: AggregateContractResponse,
   decodeFunctionData: { (fragment: FunctionFragment, data: BytesLike): any[] },
   handleContractValue: {
     <T>(value: any, functionFragment: FunctionFragment): T;
   },
-  network: "tron" | "eth"
+  network: ChainType
 ) {
   const returnObject: ContractCallResults = {
     results: {},
@@ -214,7 +211,7 @@ export function buildUpAggregateResponse<
       abi: transformedArgs.abi,
       call: {
         methodName: transformedArgs.method.name,
-        methodParameters: transformedArgs.parameters || [],
+        methodParameters: transformedArgs.args || [],
       },
     };
 

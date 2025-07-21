@@ -4,7 +4,8 @@ import {
   AggregateContractResponse,
   CONTRACT_SUCCESS,
   ContractCallArgs,
-  EthProvider,
+  ContractSendArgs,
+  EvmProvider,
   FastTransactionResult,
   MultiCallArgs,
   SendTransaction,
@@ -260,9 +261,7 @@ const ABI = [
   },
 ];
 
-export class TronContractHelper<
-  Provider extends TronProvider | EthProvider
-> extends ContractHelperBase<Provider> {
+export class TronContractHelper extends ContractHelperBase<"tron"> {
   private provider: TronProvider;
   private formatValueType: TrxFormatValue;
 
@@ -296,8 +295,8 @@ export class TronContractHelper<
     ]);
   }
 
-  private buildAggregateCall(multiCallArgs: MultiCallArgs<Provider>[]) {
-    return buildAggregateCall<Provider>(
+  private buildAggregateCall(multiCallArgs: MultiCallArgs[]) {
+    return buildAggregateCall(
       multiCallArgs,
       (fragment, values) => {
         const funcABI = JSON.parse(fragment.format("json"));
@@ -314,10 +313,10 @@ export class TronContractHelper<
   }
 
   private buildUpAggregateResponse<T>(
-    multiCallArgs: MultiCallArgs<Provider>[],
+    multiCallArgs: MultiCallArgs[],
     response: AggregateContractResponse
   ) {
-    return buildUpAggregateResponse<Provider, T>(
+    return buildUpAggregateResponse<T>(
       multiCallArgs,
       response,
       (fragment, data) => {
@@ -374,7 +373,7 @@ export class TronContractHelper<
    * Execute the multicall contract call
    * @param calls The calls
    */
-  public async multicall<T>(calls: MultiCallArgs<Provider>[]) {
+  public async multicall<T>(calls: MultiCallArgs[]) {
     const provider = this.provider;
     const address = this.multicallAddress;
     const contract = provider.contract(ABI, address);
@@ -385,15 +384,15 @@ export class TronContractHelper<
     return this.buildUpAggregateResponse<T>(calls, contractResponse);
   }
 
-  public async call<T>(contractCallArgs: ContractCallArgs<Provider>) {
+  public async call<T>(contractCallArgs: ContractCallArgs) {
     const {
       address,
       abi,
       method,
-      parameters = [],
+      args = [],
     } = transformContractCallArgs(contractCallArgs, "tron");
     const contract = this.provider.contract(abi as any, address);
-    const rawResult = await contract[method.name](...parameters).call();
+    const rawResult = await contract[method.name](...args).call();
     const result = this.handleContractValue(rawResult, method.fragment);
     return result as T;
   }
@@ -418,18 +417,15 @@ export class TronContractHelper<
 
   async send(
     from: string,
-    sendTransaction: SendTransaction<Provider>,
-    contractOption: ContractCallArgs<Provider>
+    sendTransaction: SendTransaction<"tron">,
+    contractOption: ContractSendArgs<"tron">
   ) {
     const {
       address,
       method,
       options,
-      parameters = [],
-    } = transformContractCallArgs<TronProvider>(
-      contractOption as ContractCallArgs<TronProvider>,
-      "tron"
-    );
+      args = [],
+    } = transformContractCallArgs<"tron">(contractOption, "tron");
     const functionFragment = method.fragment;
     const provider = this.provider;
     const transaction = await provider.transactionBuilder.triggerSmartContract(
@@ -438,15 +434,14 @@ export class TronContractHelper<
       options ? options : {},
       functionFragment.inputs.map((el, i) => ({
         type: el.type,
-        value: parameters[i],
+        value: args[i],
       })),
       from
     );
     let txId = await sendTransaction(
-      // @ts-ignore
       transaction.transaction,
       this.provider,
-      true
+      "tron"
     );
     return txId;
   }

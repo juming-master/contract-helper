@@ -14,6 +14,7 @@ Supports batched read queries via Multicall, lazy call queuing, transaction send
   - `send()` – signed transaction sending
   - `lazyCall()` – queued batched calls with auto-trigger and debounce
   - `checkTransactionResult()` – transaction receipt/result tracking
+  - `sendAndCheckResult()` - signing transaction, sending it and checking the transaction result.
 - ⏱️ Automatic `lazyCall()` batching based on:
   - `multicallMaxLazyCallsLength`
   - `multicallLazyQueryTimeout`
@@ -41,9 +42,10 @@ import { JsonRpcProvider, Wallet } from "ethers";
 
 const provider = new JsonRpcProvider("<ETH_RPC>");
 
-const helper = new ContractHelper({
+const helper = new ContractHelper<"evm">({
+  chain: "evm",
   provider,
-  multicallV2Address: "<MULTICALL_V2_ADDRESS>",
+  multicallV2Address: "<ETH_MULTICALL_V2_ADDRESS>",
   simulateBeforeSend: true, // optional, defaults to true
 });
 ```
@@ -59,7 +61,8 @@ const tronWeb = new TronWeb({
   privateKey: "<PRIVATE_KEY>",
 });
 
-const helper = new ContractHelper({
+const helper = new ContractHelper<"tron">({
+  chain: "tron"
   provider: tronWeb,
   multicallV2Address: "<MULTICALL_CONTRACT_ADDRESS>",
 });
@@ -73,11 +76,17 @@ Calls a single read-only smart contract method.
 
 ```typescript
 
-interface ContractCallArgs {
-  address: string;                       // Contract address
-  abi?: AbiFragment[];                    // ABI definition (single function ABI is enough)
-  method: string;                        // Method name or full signature (see below)
-  parameters?: any[];                    // Arguments passed to the function
+export type ChainType = "tron" | "evm";
+
+export interface ContractCallArgs {
+  // Contract address
+  address: string;
+  // ABI definition (single function ABI is enough)
+  abi?: InterfaceAbi;
+  // Method name or full signature (see below)
+  method: string;   
+  // Arguments passed to the function
+  args?: Array<any>;
 }
 
 const result = await helper.call<string>({
@@ -101,11 +110,16 @@ Batch read-only calls. T should be an key-value object.
 ```typescript
 
 type MultiCallArgs = {
-  key: string;                            // key is the key in the T.
-  address: string;                       // Contract address
-  abi?: AbiFragment[];                    // ABI definition (single function ABI is enough)
-  method: string;                        // Method name or full signature (see below)
-  parameters?: any[];                    // Arguments passed to the function
+  // key is the key in the T.
+  key: string;           
+  // Contract address                
+  address: string;          
+  // ABI definition (single function ABI is enough)             
+  abi?: AbiFragment[];         
+  // Method name or full signature (see below)          
+  method: string;                        
+  // Arguments passed to the function
+  args?: any[];                    
 }[]
 
 const results = await ethHelper.multicall<{symbol: string,name: string}>([
@@ -128,38 +142,29 @@ console.log(results.symbol,results.name);
 Send a transaction and return the transaction hash.
 
 ```typescript
+
 // Type definitions
-interface EthSendTransaction {
-  (tx: EthTransactionRequest, provider: EthProvider, isTron: false): Promise<string>;
+
+interface ContractSendArgs<Chain extends ChainType>
+  extends ContractCallArgs {
+  options?: Chain extends "tron"
+    ? TronContractCallOptions  // feeLimit, tokenValue
+    : EvmContractCallOptions; // maxPriorityFeePerGas, gasPrice, value
 }
 
-interface TronSendTransaction {
-  (tx: TronTransactionRequest, provider: TronWeb, isTron: true): Promise<string>;
-}
-
-type SendTransaction<Provider extends TronWeb | EthProvider> = Provider extends TronWeb
-  ? TronSendTransaction
-  : EthSendTransaction;
-
-interface ContractCallArgs {
-  address: string;                      // Contract address
-  abi?: AbiFragment[];                  // ABI definition (a single function ABI is sufficient)
-  method: string;                      // Method name or full signature (see below)
-  parameters?: any[];                  // Arguments passed to the function
-  // Options for sending transactions such as gasLimit (ETH), feeLimit (TRON), value (ETH payment), etc.
-  options?: {
-    maxFeePerGas?: string | number | bigint; // Used for Ethereum
-    feeLimit?: string | number | bigint;     // Used for Tron
-    value?: string | number | bigint;        // Used for Ethereum
-    [key: string]: any;
-  };
+interface SendTransaction<Chain extends ChainType> {
+  (
+    tx: Chain extends "tron" ? TronTransactionRequest : EvmTransactionRequest,
+    provider: Chain extends "tron" ? TronProvider : EvmProvider,
+    chain: Chain
+  ): Promise<string>;
 }
 
 // Ethereum Transaction Sending Example
 const ethWallet = new Wallet(PRIVATE_KEY);
 const txId = await ethHelper.send(
   signerAddress,
-  async (tx: EthTransactionRequest, provider: Provider) => {
+  async (tx: EthTransactionRequest, provider: Provider, chain: ChainType) => {
     const signedTx = await ethWallet.signTransaction(tx);
     const response = await provider.broadcastTransaction(signedTx);
     return response.hash;
@@ -186,7 +191,7 @@ const signer = new TronWeb({
 
 const txId = await tronHelper.send(
   signerAddress, // connected wallet address
-  async function (tx: TronTransactionRequest, provider: TronWeb) {
+  async function (tx: TronTransactionRequest, provider: TronWeb, chain: ChainType) {
     const signedTransaction = await signer.trx.sign(tx, PRIVATE_KEY);
     const response = await provider.trx.sendRawTransaction(signedTransaction);
     return response.transaction.txID;
@@ -211,7 +216,7 @@ Check the status or result of a blockchain transaction by its transaction ID.
 
 ```typescript
 export interface SimpleTransactionResult {
-  blockNumber?: BigNumber;  // Optional block number where the transaction was confirmed, only in final check result.
+  blockNumber?: BigInt;  // Optional block number where the transaction was confirmed, only in final check result.
   txId: string;             // Transaction ID or hash
 }
 
@@ -253,10 +258,10 @@ console.log("Block Number:", result.blockNumber);
 Send a transaction with trx options and eth options.
 
 ```typescript
-const txId = await ethHelper.send(
+const txId = await ethHelper.sendWithOptions(
   signerAddress,
-  async (tx: EthTransactionRequest | TronTransactionRequest, provider: Provider | TronWeb, isTron: boolean) => {
-    if (isTron) {
+  async (tx: EthTransactionRequest | TronTransactionRequest, provider: Provider | TronWeb, chain: ChainType) => {
+    if (chain === "tron") {
       const signedTransaction = await signer.trx.sign(tx, PRIVATE_KEY);
       const response = await provider.trx.sendRawTransaction(signedTransaction);
       return response.transaction.txID;
@@ -290,10 +295,10 @@ const txId = await ethHelper.send(
 Send a transaction with trx options and eth options and check the transaction result.
 
 ```typescript
-const result = await ethHelper.send(
+const result = await ethHelper.sendAndCheckResult(
   signerAddress,
-  async (tx: EthTransactionRequest | TronTransactionRequest, provider: Provider | TronWeb, isTron: boolean) => {
-    if (isTron) {
+  async (tx: EthTransactionRequest | TronTransactionRequest, provider: Provider | TronWeb, chain: ChainType) => {
+    if (chain === "tron") {
       const signedTransaction = await signer.trx.sign(tx, PRIVATE_KEY);
       const response = await provider.trx.sendRawTransaction(signedTransaction);
       return response.transaction.txID;
@@ -405,6 +410,7 @@ The ContractHelperOptions object is used to configure the behavior of the Contra
 ```typescript
 
 interface ContractHelperOptions<Provider extends TronWeb | EthProvider> {
+  chain: ChainType;                          // Required. Chain type. "tron" or "evm"
   provider: Provider;                        // Required. Ethers.js provider or TronWeb instance.
   multicallV2Address: string;                // Required. Address of the deployed Multicall V2 contract.
   multicallLazyQueryTimeout?: number;        // Optional. Max wait time (ms) before executing the lazy call queue. Default: 1000ms.

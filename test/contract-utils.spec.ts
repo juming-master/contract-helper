@@ -62,12 +62,12 @@ describe("ContractHelperUtils internal methods", () => {
         address: "0x1234",
         abi: sampleAbi,
         method: "foo",
-        parameters: [42, "0x0000000000000000000000000000000000000000"],
+        args: [42, "0x0000000000000000000000000000000000000000"],
       };
-      const result = transformContractCallArgs(input, "eth");
+      const result = transformContractCallArgs(input, "evm");
       expect(result.address).to.equal("0x1234");
       expect(result.method.name).to.equal("foo");
-      expect(result.parameters).to.deep.equal([
+      expect(result.args).to.deep.equal([
         42,
         "0x0000000000000000000000000000000000000000",
       ]);
@@ -77,9 +77,9 @@ describe("ContractHelperUtils internal methods", () => {
       const input = {
         address: "0x1234",
         method: "foo(uint256,address)",
-        parameters: [42, "0x0000000000000000000000000000000000000000"],
+        args: [42, "0x0000000000000000000000000000000000000000"],
       };
-      const result = transformContractCallArgs(input, "eth");
+      const result = transformContractCallArgs(input, "evm");
       expect(result.method.fragment.format("sighash")).to.equal(
         sampleFragment.format("sighash")
       );
@@ -93,7 +93,7 @@ describe("ContractHelperUtils internal methods", () => {
             abi: sampleAbi,
             method: "nonexistent",
           },
-          "eth"
+          "evm"
         )
       ).to.throw();
     });
@@ -179,13 +179,13 @@ describe("ContractHelperUtils internal methods", () => {
           key: "foo",
           address: "0x1234567890123456789012345678901234567890",
           method: iface.getFunction("foo")!.format("sighash"),
-          parameters: [42, "hello"],
+          args: [42, "hello"],
         },
         {
           key: "bar",
           address: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
           method: iface.getFunction("bar")!.format("minimal"),
-          parameters: [],
+          args: [],
         },
       ];
 
@@ -195,7 +195,7 @@ describe("ContractHelperUtils internal methods", () => {
         return `${fragment.name}(${values.join(",")})`;
       };
 
-      const result = buildAggregateCall(multiCallArgs, encodeFunction, "eth");
+      const result = buildAggregateCall(multiCallArgs, encodeFunction, "evm");
 
       expect(result).to.be.an("array").with.length(2);
       expect(result[0]).to.deep.equal({
@@ -211,7 +211,7 @@ describe("ContractHelperUtils internal methods", () => {
     });
 
     it("should handle empty input", () => {
-      const result = buildAggregateCall([], () => "", "eth");
+      const result = buildAggregateCall([], () => "", "evm");
       expect(result).to.deep.equal([]);
     });
   });
@@ -228,14 +228,14 @@ describe("ContractHelperUtils internal methods", () => {
           key: "call1",
           address: "0x1234567890123456789012345678901234567890",
           method: "foo",
-          parameters: [42, "hello"],
+          args: [42, "hello"],
           abi,
         },
         {
           key: "call2",
           address: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
           method: "bar",
-          parameters: [],
+          args: [],
           abi,
         },
       ];
@@ -265,7 +265,7 @@ describe("ContractHelperUtils internal methods", () => {
         response,
         decode,
         format,
-        "eth"
+        "evm"
       );
 
       expect(result).to.deep.equal({

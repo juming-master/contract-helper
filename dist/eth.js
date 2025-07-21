@@ -193,7 +193,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             const iface = new ethers_1.Interface([fragment]);
             const encodedData = iface.encodeFunctionData(fragment, values);
             return encodedData;
-        }, "eth");
+        }, "evm");
     }
     buildUpAggregateResponse(multiCallArgs, response) {
         return (0, contract_utils_1.buildUpAggregateResponse)(multiCallArgs, response, function (fragment, data) {
@@ -202,7 +202,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             return result;
         }, (value, fragment) => {
             return this.handleContractValue(value, fragment);
-        }, "eth");
+        }, "evm");
     }
     formatValue(value, type) {
         switch (true) {
@@ -250,18 +250,18 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         return this.buildUpAggregateResponse(calls, response);
     }
     async call(contractCallArgs) {
-        const { address, abi, method, parameters = [], } = (0, contract_utils_1.transformContractCallArgs)(contractCallArgs, "eth");
+        const { address, abi, method, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractCallArgs, "evm");
         const contract = new ethers_1.Contract(address, abi, this.provider);
-        const rawResult = await contract[method.name](...parameters);
+        const rawResult = await contract[method.name](...args);
         const result = this.handleContractValue(rawResult, method.fragment);
         return result;
     }
     async send(from, sendTransaction, contractOption) {
-        const { address, abi, method, options, parameters = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "eth");
+        const { address, abi, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "evm");
         const chainId = (await this.provider.getNetwork()).chainId;
         const nonce = await this.provider.getTransactionCount(from);
         const interf = new ethers_1.Interface(abi);
-        const data = interf.encodeFunctionData(method.fragment, parameters);
+        const data = interf.encodeFunctionData(method.fragment, args);
         const tx = {
             ...options,
             to: address,
@@ -294,9 +294,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
                 throw err;
             }
         }
-        const txId = await sendTransaction({ ...tx }, 
-        // @ts-ignore
-        this.provider, false);
+        const txId = await sendTransaction({ ...tx }, this.provider, "evm");
         return txId;
     }
     async checkReceipt(txId, confirmations) {
