@@ -1,10 +1,10 @@
-import { ContractCallArgs, ContractSendArgs, EthFormatValue, EvmProvider, MultiCallArgs, SendTransaction, SimpleTransactionResult } from "./types";
+import { ContractCallArgs, ContractSendArgs, EthFormatValue, EvmRunner, MultiCallArgs, SendTransaction, SimpleTransactionResult } from "./types";
 import { ContractHelperBase } from "./contract-helper-base";
 export declare class EthContractHelper extends ContractHelperBase<"evm"> {
-    private provider;
+    private runner;
     private simulate;
     private formatValueType;
-    constructor(multicallContractAddress: string, provider: EvmProvider, simulate: boolean, formatValue: EthFormatValue);
+    constructor(multicallContractAddress: string, runner: EvmRunner, simulate: boolean, formatValue: EthFormatValue);
     private buildAggregateCall;
     private buildUpAggregateResponse;
     private formatValue;

@@ -1,4 +1,9 @@
-import { InterfaceAbi, TransactionLike, Provider as EvmProvider } from "ethers";
+import {
+  InterfaceAbi,
+  TransactionLike,
+  Provider as EvmProvider,
+  ContractRunner as EvmRunner,
+} from "ethers";
 import { TronWeb as TronProvider } from "tronweb";
 import BigNumber from "bignumber.js";
 import {
@@ -14,6 +19,7 @@ import { TransactionReceiptError } from "./errors";
 export {
   TransactionRequest as EvmTransactionRequest,
   TransactionResponse as EvmTransactionResponse,
+  ContractRunner as EvmRunner,
   Provider as EvmProvider,
   Signer as EvmSigner,
 } from "ethers";
@@ -213,7 +219,7 @@ export interface EthFormatValue {
 
 export type ContractHelperOptions<Chain extends ChainType> = {
   chain: Chain;
-  provider: Chain extends "tron" ? TronProvider : EvmProvider;
+  provider: Chain extends "tron" ? TronProvider : EvmRunner;
   multicallV2Address: string;
   multicallLazyQueryTimeout?: number;
   multicallMaxLazyCallsLength?: number;

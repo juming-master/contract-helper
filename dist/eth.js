@@ -179,12 +179,15 @@ const ABI = [
     },
 ];
 class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
-    provider;
+    runner;
     simulate;
     formatValueType;
-    constructor(multicallContractAddress, provider, simulate, formatValue) {
+    constructor(multicallContractAddress, runner, simulate, formatValue) {
         super(multicallContractAddress);
-        this.provider = provider;
+        if (!runner.provider) {
+            throw new Error(`EVM runner should be initialized with a provider`);
+        }
+        this.runner = runner;
         this.simulate = simulate;
         this.formatValueType = formatValue;
     }
@@ -241,7 +244,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
      * @param calls The calls
      */
     async multicall(calls) {
-        const multicallContract = new ethers_1.Contract(this.multicallAddress, ABI, this.provider);
+        const multicallContract = new ethers_1.Contract(this.multicallAddress, ABI, this.runner);
         const multicalls = this.buildAggregateCall(calls);
         const response = await multicallContract.aggregate.staticCall(multicalls.map((call) => ({
             target: call.target,
@@ -251,15 +254,16 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
     }
     async call(contractCallArgs) {
         const { address, abi, method, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractCallArgs, "evm");
-        const contract = new ethers_1.Contract(address, abi, this.provider);
+        const contract = new ethers_1.Contract(address, abi, this.runner);
         const rawResult = await contract[method.name](...args);
         const result = this.handleContractValue(rawResult, method.fragment);
         return result;
     }
     async send(from, sendTransaction, contractOption) {
         const { address, abi, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "evm");
-        const chainId = (await this.provider.getNetwork()).chainId;
-        const nonce = await this.provider.getTransactionCount(from);
+        const provider = this.runner.provider;
+        const chainId = (await provider.getNetwork()).chainId;
+        const nonce = await provider.getTransactionCount(from);
         const interf = new ethers_1.Interface(abi);
         const data = interf.encodeFunctionData(method.fragment, args);
         const tx = {
@@ -272,7 +276,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             from,
         };
         if (!tx?.gasPrice) {
-            const feeData = await this.provider.getFeeData();
+            const feeData = await provider.getFeeData();
             if (!tx?.maxFeePerGas) {
                 tx.maxFeePerGas = feeData.maxFeePerGas;
             }
@@ -281,31 +285,26 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             }
         }
         if (!tx?.gasLimit) {
-            const estimatedGas = await this.provider.estimateGas(tx);
+            const estimatedGas = await provider.estimateGas(tx);
             const gasLimit = (estimatedGas * 120n) / 100n;
             tx.gasLimit = gasLimit;
         }
         if (this.simulate) {
             try {
-                await this.provider.call({ ...tx, from });
+                await provider.call({ ...tx, from });
             }
             catch (err) {
                 console.error(err);
                 throw err;
             }
         }
-        const txId = await sendTransaction({ ...tx }, this.provider, "evm");
+        const txId = await sendTransaction({ ...tx }, provider, "evm");
         return txId;
     }
     async checkReceipt(txId, confirmations) {
         return (0, helper_1.retry)(async () => {
-            const receipt = await this.provider.getTransactionReceipt(txId);
+            const receipt = await this.runner.provider.waitForTransaction(txId, confirmations);
             if (!receipt) {
-                await (0, wait_1.default)(1000);
-                return this.checkReceipt(txId, confirmations);
-            }
-            const receiptConfirmations = await receipt.confirmations();
-            if (receiptConfirmations < confirmations) {
                 await (0, wait_1.default)(1000);
                 return this.checkReceipt(txId, confirmations);
             }

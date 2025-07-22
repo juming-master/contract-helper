@@ -80,8 +80,8 @@ const tronSend: TronSendTransaction = async function (tx, provider) {
 };
 
 const evmSend: EvmSendTransaction = async function (tx, provider) {
-  const signedTx = await ethWallet.signTransaction(tx);
-  const response = await provider.broadcastTransaction(signedTx);
+  const transaction = await ethWallet.signTransaction(tx);
+  const response = await provider.broadcastTransaction(transaction);
   return response.hash;
 };
 

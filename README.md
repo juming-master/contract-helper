@@ -213,6 +213,10 @@ const txId = await tronHelper.send(
 ### checkTransactionResult(txID: string, options?: TransactionOption): Promise<SimpleTransactionResult>
 
 Check the status or result of a blockchain transaction by its transaction ID.
+> ⚠️ 
+options.success will only be called when the transaction is finalized in the blockchain.
+If you're using CheckTransactionType.Fast mode and just want to wait for the transaction to be confirmed as successfully executed, you can simply await the returned value of checkTransactionResult.
+
 
 ```typescript
 export interface SimpleTransactionResult {

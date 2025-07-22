@@ -53,10 +53,12 @@ export abstract class ContractHelperBase<Chain extends ChainType> {
     if (checkOption === CheckTransactionType.Fast) {
       return this.fastCheckTransactionResult(txID)
         .then((transaction) => {
-          runPromiseWithCallback<SimpleTransactionResult>(
-            this.finalCheckTransactionResult(txID),
-            options
-          );
+          if (options.success) {
+            runPromiseWithCallback<SimpleTransactionResult>(
+              this.finalCheckTransactionResult(txID),
+              options
+            );
+          }
           return transaction;
         })
         .catch((error: TransactionReceiptError) => {

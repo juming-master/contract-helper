@@ -14,6 +14,8 @@ import {
   EvmContractCallOptions,
   ChainType,
   ContractSendArgs,
+  EvmRunner,
+  TronProvider,
 } from "./types";
 import { runWithCallback, map, retry } from "./helper";
 import debounce, { DebouncedFunction } from "debounce";
@@ -56,12 +58,12 @@ export class ContractHelper<Chain extends ChainType> {
       chain === "tron"
         ? new TronContractHelper(
             multicallAddr,
-            provider as TronWeb,
+            provider as TronProvider,
             options.formatValue as TrxFormatValue
           )
         : new EthContractHelper(
             multicallAddr,
-            provider as EthProvider,
+            provider as EvmRunner,
             options.simulateBeforeSend ?? true,
             options.formatValue as EthFormatValue
           )

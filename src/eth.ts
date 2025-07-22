@@ -4,6 +4,7 @@ import {
   ContractSendArgs,
   EthFormatValue,
   EvmProvider,
+  EvmRunner,
   MultiCallArgs,
   SendTransaction,
   SimpleTransactionResult,
@@ -195,18 +196,21 @@ const ABI = [
 ];
 
 export class EthContractHelper extends ContractHelperBase<"evm"> {
-  private provider: EvmProvider;
+  private runner: EvmRunner;
   private simulate: boolean;
   private formatValueType: EthFormatValue;
 
   constructor(
     multicallContractAddress: string,
-    provider: EvmProvider,
+    runner: EvmRunner,
     simulate: boolean,
     formatValue: EthFormatValue
   ) {
     super(multicallContractAddress);
-    this.provider = provider;
+    if (!runner.provider) {
+      throw new Error(`EVM runner should be initialized with a provider`);
+    }
+    this.runner = runner;
     this.simulate = simulate;
     this.formatValueType = formatValue;
   }
@@ -287,7 +291,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     const multicallContract = new Contract(
       this.multicallAddress,
       ABI,
-      this.provider
+      this.runner
     );
     const multicalls = this.buildAggregateCall(calls);
     const response: AggregateContractResponse =
@@ -307,7 +311,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       method,
       args = [],
     } = transformContractCallArgs(contractCallArgs, "evm");
-    const contract = new Contract(address, abi, this.provider);
+    const contract = new Contract(address, abi, this.runner);
     const rawResult = await contract[method.name](...args);
     const result = this.handleContractValue(rawResult, method.fragment);
     return result as T;
@@ -325,8 +329,9 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       options,
       args = [],
     } = transformContractCallArgs<"evm">(contractOption, "evm");
-    const chainId = (await this.provider.getNetwork()).chainId;
-    const nonce = await this.provider.getTransactionCount(from);
+    const provider = this.runner.provider!;
+    const chainId = (await provider.getNetwork()).chainId;
+    const nonce = await provider.getTransactionCount(from);
     const interf = new Interface(abi);
     const data = interf.encodeFunctionData(method.fragment, args);
     const tx: any = {
@@ -339,7 +344,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       from,
     };
     if (!tx?.gasPrice) {
-      const feeData = await this.provider.getFeeData();
+      const feeData = await provider.getFeeData();
       if (!tx?.maxFeePerGas) {
         tx.maxFeePerGas = feeData.maxFeePerGas;
       }
@@ -348,20 +353,20 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       }
     }
     if (!tx?.gasLimit) {
-      const estimatedGas = await this.provider.estimateGas(tx);
+      const estimatedGas = await provider.estimateGas(tx);
       const gasLimit = (estimatedGas * 120n) / 100n;
       tx.gasLimit = gasLimit;
     }
 
     if (this.simulate) {
       try {
-        await this.provider.call({ ...tx, from });
+        await provider.call({ ...tx, from });
       } catch (err: any) {
         console.error(err);
         throw err;
       }
     }
-    const txId = await sendTransaction({ ...tx }, this.provider, "evm");
+    const txId = await sendTransaction({ ...tx }, provider, "evm");
     return txId;
   }
 
@@ -371,13 +376,11 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
   ): Promise<TransactionReceipt> {
     return retry(
       async () => {
-        const receipt = await this.provider.getTransactionReceipt(txId);
+        const receipt = await this.runner.provider!.waitForTransaction(
+          txId,
+          confirmations
+        );
         if (!receipt) {
-          await wait(1000);
-          return this.checkReceipt(txId, confirmations);
-        }
-        const receiptConfirmations = await receipt.confirmations();
-        if (receiptConfirmations < confirmations) {
           await wait(1000);
           return this.checkReceipt(txId, confirmations);
         }

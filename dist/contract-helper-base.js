@@ -16,7 +16,9 @@ class ContractHelperBase {
         if (checkOption === types_1.CheckTransactionType.Fast) {
             return this.fastCheckTransactionResult(txID)
                 .then((transaction) => {
-                (0, helper_1.runPromiseWithCallback)(this.finalCheckTransactionResult(txID), options);
+                if (options.success) {
+                    (0, helper_1.runPromiseWithCallback)(this.finalCheckTransactionResult(txID), options);
+                }
                 return transaction;
             })
                 .catch((error) => {
