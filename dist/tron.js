@@ -244,10 +244,12 @@ const ABI = [
 class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
     provider;
     formatValueType;
-    constructor(multicallContractAddress, provider, formatValue) {
+    feeCalculation;
+    constructor(multicallContractAddress, provider, formatValue, feeCalculation) {
         super(multicallContractAddress);
         this.provider = provider;
         this.formatValueType = formatValue;
+        this.feeCalculation = feeCalculation;
     }
     formatToEthAddress(address) {
         if (tronweb_1.TronWeb.isAddress(address)) {
@@ -349,11 +351,19 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         }
         return broadcast.transaction.txID;
     }
+    async getFeeParams() {
+        const feeCalculation = this.feeCalculation;
+        if (feeCalculation) {
+            return await feeCalculation();
+        }
+        return {};
+    }
     async send(from, sendTransaction, contractOption) {
         const { address, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "tron");
         const functionFragment = method.fragment;
         const provider = this.provider;
-        const transaction = await provider.transactionBuilder.triggerSmartContract(address, functionFragment.format("sighash"), options ? options : {}, functionFragment.inputs.map((el, i) => ({
+        const feeParams = await this.getFeeParams();
+        const transaction = await provider.transactionBuilder.triggerSmartContract(address, functionFragment.format("sighash"), { ...feeParams, ...(options ? options : {}) }, functionFragment.inputs.map((el, i) => ({
             type: el.type,
             value: args[i],
         })), from);

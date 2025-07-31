@@ -126,7 +126,6 @@ for (let { chain, from, erc20, multicallV2, multiTypes, send, provider } of [
         method: "getUser",
       });
       expect(result.amount.eq("42")).to.be.equal(true);
-      debugger;
       const result2 = await helper.call<[string, BigNumber]>({
         address: multiTypes,
         method: "function getUser() view returns (address,uint256)",

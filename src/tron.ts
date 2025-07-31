@@ -5,19 +5,19 @@ import {
   CONTRACT_SUCCESS,
   ContractCallArgs,
   ContractSendArgs,
-  EvmProvider,
   FastTransactionResult,
   MultiCallArgs,
   SendTransaction,
   SimpleTransactionResult,
   TronProvider,
-  TrxFormatValue,
+  TronFormatValue,
+  TronTransactionRequest,
+  SetTronFee,
 } from "./types";
 import {
   buildAggregateCall,
   buildUpAggregateResponse,
   formatBase58Address,
-  formatHexAddress,
   transformContractCallArgs,
 } from "./contract-utils";
 import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
@@ -263,16 +263,19 @@ const ABI = [
 
 export class TronContractHelper extends ContractHelperBase<"tron"> {
   private provider: TronProvider;
-  private formatValueType: TrxFormatValue;
+  private formatValueType: TronFormatValue;
+  private feeCalculation?: SetTronFee;
 
   constructor(
     multicallContractAddress: string,
     provider: TronProvider,
-    formatValue: TrxFormatValue
+    formatValue: TronFormatValue,
+    feeCalculation?: SetTronFee
   ) {
     super(multicallContractAddress);
     this.provider = provider;
     this.formatValueType = formatValue;
+    this.feeCalculation = feeCalculation;
   }
 
   private formatToEthAddress(address: string) {
@@ -415,6 +418,14 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
     return broadcast.transaction.txID;
   }
 
+  private async getFeeParams() {
+    const feeCalculation = this.feeCalculation;
+    if (feeCalculation) {
+      return await feeCalculation();
+    }
+    return {};
+  }
+
   async send(
     from: string,
     sendTransaction: SendTransaction<"tron">,
@@ -428,10 +439,11 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
     } = transformContractCallArgs<"tron">(contractOption, "tron");
     const functionFragment = method.fragment;
     const provider = this.provider;
+    const feeParams = await this.getFeeParams();
     const transaction = await provider.transactionBuilder.triggerSmartContract(
       address,
       functionFragment.format("sighash"),
-      options ? options : {},
+      { ...feeParams, ...(options ? options : {}) },
       functionFragment.inputs.map((el, i) => ({
         type: el.type,
         value: args[i],

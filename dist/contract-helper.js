@@ -28,6 +28,7 @@ class ContractHelper {
      *   - `formatValue` (optional, object): Formatting options for returned values:
      *       - `address` ("base58" | "checksum" | "hex"): Format of returned addresses. Default is "base58" for Tron and "checksum" for Ethereum.
      *       - `uint` ("bigint" | "bignumber"): Format for returned uint values. Default is "bignumber".
+     *   - `feeCalculation` (optional, number): calculate the desired fee based on network-provided fee parameters. By default, multiply the base fee by 1.2x.
      */
     constructor(options) {
         const chain = options.chain;
@@ -38,7 +39,7 @@ class ContractHelper {
         this.isTron = chain === "tron";
         this.helper = (chain === "tron"
             ? new tron_1.TronContractHelper(multicallAddr, provider, options.formatValue)
-            : new eth_1.EthContractHelper(multicallAddr, provider, options.simulateBeforeSend ?? true, options.formatValue));
+            : new eth_1.EthContractHelper(multicallAddr, provider, options.simulateBeforeSend ?? true, options.formatValue, options.feeCalculation));
         this.addLazyCall = this.addLazyCall.bind(this);
         this.debounceExecuteLazyCalls = (0, debounce_1.default)(() => {
             return this.executeLazyCalls();

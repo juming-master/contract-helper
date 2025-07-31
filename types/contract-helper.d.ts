@@ -19,6 +19,7 @@ export declare class ContractHelper<Chain extends ChainType> {
      *   - `formatValue` (optional, object): Formatting options for returned values:
      *       - `address` ("base58" | "checksum" | "hex"): Format of returned addresses. Default is "base58" for Tron and "checksum" for Ethereum.
      *       - `uint` ("bigint" | "bignumber"): Format for returned uint values. Default is "bignumber".
+     *   - `feeCalculation` (optional, number): calculate the desired fee based on network-provided fee parameters. By default, multiply the base fee by 1.2x.
      */
     constructor(options: ContractHelperOptions<Chain>);
     /**

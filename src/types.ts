@@ -207,15 +207,38 @@ export type ContractQueryCallback<T = any> = PromiseCallback<T>;
 
 export type ContractQueryTrigger<T = any> = ContractQueryCallback<T> | boolean;
 
-export interface TrxFormatValue {
+export interface TronFormatValue {
   address?: "base58" | "checksum" | "hex"; // default base58
   uint?: "bigint" | "bignumber"; // default bignumber
 }
 
-export interface EthFormatValue {
+export interface EvmFormatValue {
   address?: "checksum" | "hex"; //default checksum
   uint?: "bigint" | "bignumber"; //default bignumber
 }
+
+export interface SetTronFee {
+  (): Promise<{ feeLimit: bigint }>;
+}
+
+export type SetEvmFee = {
+  (networkFee: {
+    maxFeePerGas?: bigint;
+    maxPriorityFeePerGas?: bigint;
+    estimatedGas: bigint;
+    gasPrice?: bigint;
+  }): Promise<
+    | {
+        maxFeePerGas: bigint;
+        maxPriorityFeePerGas: bigint;
+        gasLimit: bigint;
+      }
+    | {
+        gasPrice: bigint;
+        gasLimit: bigint;
+      }
+  >;
+};
 
 export type ContractHelperOptions<Chain extends ChainType> = {
   chain: Chain;
@@ -224,5 +247,6 @@ export type ContractHelperOptions<Chain extends ChainType> = {
   multicallLazyQueryTimeout?: number;
   multicallMaxLazyCallsLength?: number;
   simulateBeforeSend?: boolean;
-  formatValue?: Chain extends "tron" ? TrxFormatValue : EthFormatValue;
+  formatValue?: Chain extends "tron" ? TronFormatValue : EvmFormatValue;
+  feeCalculation?: Chain extends "tron" ? SetTronFee : SetEvmFee;
 };

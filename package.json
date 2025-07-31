@@ -6,7 +6,8 @@
   "types": "types",
   "scripts": {
     "compile": "npx tsc",
-    "test": "mocha --timeout 120000 -r ts-node/register ./test/**/*.ts"
+    "test": "mocha --timeout 120000 -r ts-node/register ./test/**/*.ts",
+    "publish": "npm publish"
   },
   "keywords": [
     "tron",

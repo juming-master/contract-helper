@@ -182,7 +182,8 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
     runner;
     simulate;
     formatValueType;
-    constructor(multicallContractAddress, runner, simulate, formatValue) {
+    feeCalculation;
+    constructor(multicallContractAddress, runner, simulate, formatValue, feeCalculation) {
         super(multicallContractAddress);
         if (!runner.provider) {
             throw new Error(`EVM runner should be initialized with a provider`);
@@ -190,6 +191,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         this.runner = runner;
         this.simulate = simulate;
         this.formatValueType = formatValue;
+        this.feeCalculation = feeCalculation;
     }
     buildAggregateCall(multiCallArgs) {
         return (0, contract_utils_1.buildAggregateCall)(multiCallArgs, function (fragment, values) {
@@ -259,6 +261,32 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         const result = this.handleContractValue(rawResult, method.fragment);
         return result;
     }
+    async getGasParams(tx) {
+        const provider = this.runner.provider;
+        const block = await provider.getBlock("latest");
+        const estimatedGas = await provider.estimateGas(tx);
+        const feeData = await provider.getFeeData();
+        const feeCalculation = this.feeCalculation;
+        if (feeCalculation) {
+            return await feeCalculation({
+                estimatedGas,
+                gasPrice: feeData.gasPrice ?? undefined,
+                maxFeePerGas: feeData.maxFeePerGas ?? undefined,
+                maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? undefined,
+            });
+        }
+        return {
+            gasLimit: (estimatedGas * 120n) / 100n,
+            ...(block?.baseFeePerGas != null
+                ? {
+                    maxFeePerGas: (feeData.maxFeePerGas * 120n) / 100n,
+                    maxPriorityFeePerGas: (feeData.maxPriorityFeePerGas * 150n) / 100n,
+                }
+                : {
+                    gasPrice: (feeData.gasPrice * 120n) / 100n,
+                }),
+        };
+    }
     async send(from, sendTransaction, contractOption) {
         const { address, abi, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "evm");
         const provider = this.runner.provider;
@@ -275,30 +303,18 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             type: 2,
             from,
         };
-        if (!tx?.gasPrice) {
-            const feeData = await provider.getFeeData();
-            if (!tx?.maxFeePerGas) {
-                tx.maxFeePerGas = feeData.maxFeePerGas;
-            }
-            if (!tx?.maxPriorityFeePerGas) {
-                tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-            }
-        }
-        if (!tx?.gasLimit) {
-            const estimatedGas = await provider.estimateGas(tx);
-            const gasLimit = (estimatedGas * 120n) / 100n;
-            tx.gasLimit = gasLimit;
-        }
+        const gasParams = await this.getGasParams(tx);
+        const txParams = { ...gasParams, ...tx };
         if (this.simulate) {
             try {
-                await provider.call({ ...tx, from });
+                await provider.call({ ...txParams, from });
             }
             catch (err) {
                 console.error(err);
                 throw err;
             }
         }
-        const txId = await sendTransaction({ ...tx }, provider, "evm");
+        const txId = await sendTransaction({ ...txParams }, provider, "evm");
         return txId;
     }
     async checkReceipt(txId, confirmations) {

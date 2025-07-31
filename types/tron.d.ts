@@ -1,10 +1,11 @@
-import { ContractCallArgs, ContractSendArgs, MultiCallArgs, SendTransaction, SimpleTransactionResult, TronProvider, TrxFormatValue } from "./types";
+import { ContractCallArgs, ContractSendArgs, MultiCallArgs, SendTransaction, SimpleTransactionResult, TronProvider, TronFormatValue, SetTronFee } from "./types";
 import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
 import { ContractHelperBase } from "./contract-helper-base";
 export declare class TronContractHelper extends ContractHelperBase<"tron"> {
     private provider;
     private formatValueType;
-    constructor(multicallContractAddress: string, provider: TronProvider, formatValue: TrxFormatValue);
+    private feeCalculation?;
+    constructor(multicallContractAddress: string, provider: TronProvider, formatValue: TronFormatValue, feeCalculation?: SetTronFee);
     private formatToEthAddress;
     /**
      * Map call contract to match contract format
@@ -22,6 +23,7 @@ export declare class TronContractHelper extends ContractHelperBase<"tron"> {
     multicall<T>(calls: MultiCallArgs[]): Promise<T>;
     call<T>(contractCallArgs: ContractCallArgs): Promise<T>;
     static broadcastTransaction(provider: TronProvider, signedTransaction: SignedTransaction<ContractParamter>): Promise<string>;
+    private getFeeParams;
     send(from: string, sendTransaction: SendTransaction<"tron">, contractOption: ContractSendArgs<"tron">): Promise<string>;
     fastCheckTransactionResult(txId: string): any;
     finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;

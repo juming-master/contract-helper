@@ -413,7 +413,7 @@ The ContractHelperOptions object is used to configure the behavior of the Contra
 
 ```typescript
 
-interface ContractHelperOptions<Provider extends TronWeb | EthProvider> {
+interface ContractHelperOptions<Chain extends "tron" | "evm"> {
   chain: ChainType;                          // Required. Chain type. "tron" or "evm"
   provider: Provider;                        // Required. Ethers.js provider or TronWeb instance.
   multicallV2Address: string;                // Required. Address of the deployed Multicall V2 contract.
@@ -424,6 +424,7 @@ interface ContractHelperOptions<Provider extends TronWeb | EthProvider> {
     address?: "base58" | "checksum" | "hex"; // Optional. Format returned addresses. "base58"/"checksum"/"hex" for Tron, "checksum"/"hex" for ETH.
     uint?: "bigint" | "bignumber";           // Optional. Format for returned uint values. Default is "bignumber".
   };
+  feeCalculation?: Chain extends "tron" ? SetTronFee : SetEvmFee; // Set the fee params by network fee params.
 }
 
 ```

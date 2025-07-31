@@ -8,14 +8,15 @@ import {
   ContractQueryCallback,
   SendTransaction,
   SimpleTransactionResult,
-  TrxFormatValue,
-  EthFormatValue,
+  TronFormatValue,
+  EvmFormatValue,
   TronContractCallOptions,
   EvmContractCallOptions,
   ChainType,
   ContractSendArgs,
   EvmRunner,
   TronProvider,
+  SetEvmFee,
 } from "./types";
 import { runWithCallback, map, retry } from "./helper";
 import debounce, { DebouncedFunction } from "debounce";
@@ -46,6 +47,7 @@ export class ContractHelper<Chain extends ChainType> {
    *   - `formatValue` (optional, object): Formatting options for returned values:
    *       - `address` ("base58" | "checksum" | "hex"): Format of returned addresses. Default is "base58" for Tron and "checksum" for Ethereum.
    *       - `uint` ("bigint" | "bignumber"): Format for returned uint values. Default is "bignumber".
+   *   - `feeCalculation` (optional, number): calculate the desired fee based on network-provided fee parameters. By default, multiply the base fee by 1.2x.
    */
   constructor(options: ContractHelperOptions<Chain>) {
     const chain = options.chain;
@@ -59,13 +61,14 @@ export class ContractHelper<Chain extends ChainType> {
         ? new TronContractHelper(
             multicallAddr,
             provider as TronProvider,
-            options.formatValue as TrxFormatValue
+            options.formatValue as TronFormatValue
           )
         : new EthContractHelper(
             multicallAddr,
             provider as EvmRunner,
             options.simulateBeforeSend ?? true,
-            options.formatValue as EthFormatValue
+            options.formatValue as EvmFormatValue,
+            options.feeCalculation as SetEvmFee
           )
     ) as Chain extends "tron" ? TronContractHelper : EthContractHelper;
     this.addLazyCall = this.addLazyCall.bind(this);
