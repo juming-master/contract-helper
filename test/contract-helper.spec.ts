@@ -233,6 +233,34 @@ for (let { chain, from, erc20, multicallV2, multiTypes, send, provider } of [
       expect(result.list.every((b) => typeof b === "bigint")).to.be.equal(true);
     });
 
+    it("should read values in one multicall when it consume energy.", async () => {
+      if (chain === "tron") {
+        const helper = new ContractHelper<ChainType>({
+          chain,
+          provider,
+          multicallV2Address: multicallV2,
+          formatValue: {
+            uint: "bigint",
+          },
+        });
+        debugger;
+        const result = await helper.multicall<{ item100: BigNumber }>(
+          new Array(100).fill(null).map((_, i) => {
+            return {
+              key: "item" + i,
+              address: "TJNNU4y1fVTZkaTWx5PkuwhmcBLU1C8UrQ",
+              method: "rap(bytes32 cup) public returns (uint)",
+              args: [
+                "0x0000000000000000000000000000000000000000000000000000000000000001",
+              ],
+            };
+          })
+        );
+        debugger;
+        expect(result.item100.eq(0)).to.be.equal(true);
+      }
+    });
+
     it("should read address as hex and checksum in two multicall", async () => {
       const helper = new ContractHelper<ChainType>({
         chain,

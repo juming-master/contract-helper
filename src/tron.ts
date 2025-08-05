@@ -17,6 +17,7 @@ import {
 import {
   buildAggregateCall,
   buildUpAggregateResponse,
+  findFragmentFromAbi,
   formatBase58Address,
   transformContractCallArgs,
 } from "./contract-utils";
@@ -25,7 +26,7 @@ import { ContractHelperBase } from "./contract-helper-base";
 import wait from "wait";
 import { retry } from "./helper";
 import BigNumber from "bignumber.js";
-import { FunctionFragment } from "ethers";
+import { Fragment, FunctionFragment, Interface } from "ethers";
 import {
   BroadcastTronTransactionError,
   TransactionReceiptError,
@@ -379,12 +380,65 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
   public async multicall<T>(calls: MultiCallArgs[]) {
     const provider = this.provider;
     const address = this.multicallAddress;
-    const contract = provider.contract(ABI, address);
     const paramters = this.mapCallContextToMatchContractFormat(
       this.buildAggregateCall(calls)
     );
-    const contractResponse = await contract.aggregate(paramters).call();
-    return this.buildUpAggregateResponse<T>(calls, contractResponse);
+    try {
+      const txWrapper = await provider.transactionBuilder.triggerSmartContract(
+        address,
+        "aggregate((address,bytes)[])",
+        {
+          feeLimit: 100_000_000,
+          _isConstant: true,
+        },
+        [
+          {
+            type: "tuple(address,bytes)[]",
+            value: paramters,
+          },
+        ],
+        (await provider.trx.getAccount()).address || address
+      );
+      if (
+        !(
+          Array.isArray(txWrapper.constant_result) &&
+          txWrapper.constant_result.length > 0
+        )
+      ) {
+        throw new Error(
+          `The constant_result length of triggerConstantContract('aggregate((address,bytes)[])') is 0.`
+        );
+      }
+      const contractResponse = txWrapper.constant_result;
+      if (contractResponse.length === 0) {
+      }
+      const response = `${contractResponse[0].startsWith("0x") ? "" : "0x"}${
+        contractResponse[0]
+      }`;
+      const fragment = Fragment.from(
+        "function aggregate((address,bytes)[]) view returns (uint256,bytes[])"
+      ) as FunctionFragment;
+      const interf = new Interface([fragment]);
+      const [blockNumber, data] = interf.decodeFunctionResult(
+        fragment,
+        response
+      );
+      const aggregateResponse = {
+        blockNumber: new BigNumber(blockNumber.toString()),
+        returnData: data,
+      };
+      return this.buildUpAggregateResponse<T>(calls, aggregateResponse);
+    } catch (e) {
+      const message = (e as any).message as string;
+      if (
+        /class org\.tron\.core\.vm\.program\.Program\$OutOfEnergyException : Not enough energy for/.test(
+          message
+        )
+      ) {
+        debugger;
+      }
+      throw e;
+    }
   }
 
   public async call<T>(contractCallArgs: ContractCallArgs) {
