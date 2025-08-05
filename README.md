@@ -1,6 +1,6 @@
 # contract-helper
 
-A unified smart contract interaction helper for Ethereum (via `ethers`) and Tron (via `tronweb`).  
+A smart contract interaction helper for Ethereum (via `ethers`) and Tron (via `tronweb`).  
 Supports batched read queries via Multicall, lazy call queuing, transaction sending, and result checking — with built-in debounce and retry mechanisms.
 
 ---
@@ -45,8 +45,7 @@ const provider = new JsonRpcProvider("<ETH_RPC>");
 const helper = new ContractHelper<"evm">({
   chain: "evm",
   provider,
-  multicallV2Address: "<ETH_MULTICALL_V2_ADDRESS>",
-  simulateBeforeSend: true, // optional, defaults to true
+  multicallV2Address: "<ETH_MULTICALL_V2_ADDRESS>"
 });
 ```
 
@@ -76,14 +75,12 @@ Calls a single read-only smart contract method.
 
 ```typescript
 
-export type ChainType = "tron" | "evm";
-
 export interface ContractCallArgs {
   // Contract address
   address: string;
   // ABI definition (single function ABI is enough)
   abi?: InterfaceAbi;
-  // Method name or full signature (see below)
+  // Method name or full signature
   method: string;   
   // Arguments passed to the function
   args?: Array<any>;
@@ -124,11 +121,13 @@ type MultiCallArgs = {
 
 const results = await ethHelper.multicall<{symbol: string,name: string}>([
     {
+      key: 'symbol',
       address: '0xToken1',
       abi: erc20ABI,
       method: 'symbol',
     },
     {
+      key:'name',
       address: '0xToken2',
       abi: erc20ABI,
       method: 'name',
@@ -137,7 +136,7 @@ const results = await ethHelper.multicall<{symbol: string,name: string}>([
 console.log(results.symbol,results.name);
 ```
 
-### send(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs): Promise<string>
+### send(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs): Promise\<string\>
 
 Send a transaction and return the transaction hash.
 
@@ -173,7 +172,7 @@ const txId = await ethHelper.send(
     address: 'TokenAddress',
     abi: erc20ABI,
     method: 'transfer(address,uint256)',
-    parameters: ['0xReceipt', '1000000'],
+    args: ['0xReceipt', '1000000'],
     options: {
       value: 1_000_000_000_000_000_000n,
       maxFeePerGas: 65327n,
@@ -200,7 +199,7 @@ const txId = await tronHelper.send(
     address: 'TTokenAddress',
     abi: trc20ABI,
     method: 'transfer(address,uint256)',
-    parameters: ['TRecipient', '1000000'],
+    args: ['TRecipient', '1000000'],
     options: {
       callValue: 1_000_000n,
       feeLimit: 65327n,
@@ -210,18 +209,18 @@ const txId = await tronHelper.send(
 
 ```
 
-### checkTransactionResult(txID: string, options?: TransactionOption): Promise<SimpleTransactionResult>
+### checkTransactionResult(txId: string, options?: TransactionOption): Promise<\SimpleTransactionResult\>
 
-Check the status or result of a blockchain transaction by its transaction ID.
-> ⚠️ 
-options.success will only be called when the transaction is finalized in the blockchain.
+Check the result of a blockchain transaction by its transaction hash.
+> ⚠️  
+options.success will only be called when the transaction is finalized in the blockchain even though you're using CheckTransactionType.Fast mode.
 If you're using CheckTransactionType.Fast mode and just want to wait for the transaction to be confirmed as successfully executed, you can simply await the returned value of checkTransactionResult.
 
-
 ```typescript
+
 export interface SimpleTransactionResult {
   blockNumber?: BigInt;  // Optional block number where the transaction was confirmed, only in final check result.
-  txId: string;             // Transaction ID or hash
+  txId: string;          // Transaction ID or hash
 }
 
 export enum CheckTransactionType {
@@ -239,9 +238,9 @@ export type TransactionOption = {
 
 // Demo
 
-const txID = "0x123abc...";
+const txId = "0x123abc...";
 
-const result = await helper.checkTransactionResult(txID, {
+const result = await helper.checkTransactionResult(txId, {
   check: CheckTransactionType.Fast,
   success: (info) => {
     // This is called when fianl check is completed even check is setted CheckTransactionType.Fast
@@ -252,12 +251,12 @@ const result = await helper.checkTransactionResult(txID, {
   },
 });
 
-console.log("Transaction ID:", result.txId);
+console.log("Transaction Hash:", result.txId);
 console.log("Block Number:", result.blockNumber);
 
 ```
 
-### sendWithOptions(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs, options: {trx?: TronContractCallOptions; eth: EthContractCallOptions;}): Promise<string>
+### sendWithOptions(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs, options: {trx?: TronContractCallOptions; eth: EthContractCallOptions;}): Promise\<string\>
 
 Send a transaction with trx options and eth options.
 
@@ -279,7 +278,7 @@ const txId = await ethHelper.sendWithOptions(
     address: 'TokenAddress',
     abi: erc20ABI,
     method: 'transfer(address,uint256)',
-    parameters: ['0xReceipt', '1000000']
+    args: ['0xReceipt', '1000000']
   },
   {
     trx: {
@@ -294,7 +293,7 @@ const txId = await ethHelper.sendWithOptions(
 );
 ```
 
-### sendAndCheckResult(from: string, sendTransaction: SendTransaction, contractCall: Omit<ContractCallArgs, "options">, options?: {trx?: TronContractCallOptions; eth?: EthContractCallOptions;}, callback?: TransactionOption): Promise<SimpleTransactionResult>;
+### sendAndCheckResult(from: string, sendTransaction: SendTransaction, contractCall: Omit<ContractCallArgs, "options">, options?: {trx?: TronContractCallOptions; eth?: EthContractCallOptions;}, callback?: TransactionOption): Promise\<SimpleTransactionResult\>;
 
 Send a transaction with trx options and eth options and check the transaction result.
 
@@ -316,7 +315,7 @@ const result = await ethHelper.sendAndCheckResult(
     address: 'TokenAddress',
     abi: erc20ABI,
     method: 'transfer(address,uint256)',
-    parameters: ['0xReceipt', '1000000']
+    args: ['0xReceipt', '1000000']
   },
   {
     trx: {
@@ -370,7 +369,7 @@ Adds a contract call to an internal queue, which will be automatically executed 
   
 The return value is the same as call, but the execution is deferred and batched with other calls in a multicall.
 
-> Noticie: do not use multiple await lazyCall(...) in parallel like:
+> Notice: do not use multiple await lazyCall(...) in parallel like:
 
 ```typescript
 await lazyCall(...);
@@ -417,7 +416,7 @@ interface ContractHelperOptions<Chain extends "tron" | "evm"> {
   chain: ChainType;                          // Required. Chain type. "tron" or "evm"
   provider: Provider;                        // Required. Ethers.js provider or TronWeb instance.
   multicallV2Address: string;                // Required. Address of the deployed Multicall V2 contract.
-  multicallLazyQueryTimeout?: number;        // Optional. Max wait time (ms) before executing the lazy call queue. Default: 1000ms.
+  multicallLazyQueryTimeout?: number;        // Optional. Max wait time (ms) before executing the lazy call queue. Default: 1000.
   multicallMaxLazyCallsLength?: number;      // Optional. Max number of pending calls before automatic execution. Default: 10.
   simulateBeforeSend?: boolean;              // Optional (ETH only). Whether to simulate the transaction with eth_call before sending.
   formatValue?: {
