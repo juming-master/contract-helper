@@ -384,12 +384,11 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
       this.buildAggregateCall(calls)
     );
     try {
-      const txWrapper = await provider.transactionBuilder.triggerSmartContract(
+      const txWrapper = await provider.transactionBuilder.triggerConstantContract(
         address,
         "aggregate((address,bytes)[])",
         {
-          feeLimit: 100_000_000,
-          _isConstant: true,
+          feeLimit: 200_000_000
         },
         [
           {
@@ -399,6 +398,7 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
         ],
         (await provider.trx.getAccount()).address || address
       );
+      debugger;
       if (
         !(
           Array.isArray(txWrapper.constant_result) &&
