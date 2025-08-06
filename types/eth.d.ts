@@ -16,6 +16,7 @@ export declare class EthContractHelper extends ContractHelperBase<"evm"> {
      */
     multicall<T>(calls: MultiCallArgs[]): Promise<T>;
     call<T>(contractCallArgs: ContractCallArgs): Promise<T>;
+    private maxBigInt;
     private getGasParams;
     send(from: string, sendTransaction: SendTransaction<"evm">, contractOption: ContractSendArgs<"evm">): Promise<string>;
     private checkReceipt;

@@ -322,6 +322,10 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     return result as T;
   }
 
+  private maxBigInt(...args: bigint[]): bigint {
+    return args.reduce((a, b) => (a > b ? a : b));
+  }
+
   private async getGasParams(tx: EvmTransactionRequest) {
     const provider = this.runner.provider!;
     const block = await provider.getBlock("latest");
@@ -336,16 +340,24 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? undefined,
       });
     }
+    const gasLimit = (estimatedGas * 120n) / 100n;
+    if (
+      block?.baseFeePerGas != null &&
+      feeData.maxFeePerGas &&
+      feeData.maxPriorityFeePerGas
+    ) {
+      const maxFeePerGas = (feeData.maxFeePerGas! * 120n) / 100n;
+      const maxPriorityFeePerGas =
+        (feeData.maxPriorityFeePerGas! * 120n) / 100n;
+      return {
+        gasLimit,
+        maxFeePerGas: this.maxBigInt(maxFeePerGas, maxPriorityFeePerGas),
+        maxPriorityFeePerGas,
+      };
+    }
     return {
-      gasLimit: (estimatedGas * 120n) / 100n,
-      ...(block?.baseFeePerGas != null
-        ? {
-            maxFeePerGas: (feeData.maxFeePerGas! * 120n) / 100n,
-            maxPriorityFeePerGas: (feeData.maxPriorityFeePerGas! * 150n) / 100n,
-          }
-        : {
-            gasPrice: (feeData.gasPrice! * 120n) / 100n,
-          }),
+      gasLimit,
+      gasPrice: (feeData.gasPrice! * 120n) / 100n,
     };
   }
 

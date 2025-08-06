@@ -261,6 +261,9 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         const result = this.handleContractValue(rawResult, method.fragment);
         return result;
     }
+    maxBigInt(...args) {
+        return args.reduce((a, b) => (a > b ? a : b));
+    }
     async getGasParams(tx) {
         const provider = this.runner.provider;
         const block = await provider.getBlock("latest");
@@ -275,16 +278,21 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
                 maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? undefined,
             });
         }
+        const gasLimit = (estimatedGas * 120n) / 100n;
+        if (block?.baseFeePerGas != null &&
+            feeData.maxFeePerGas &&
+            feeData.maxPriorityFeePerGas) {
+            const maxFeePerGas = (feeData.maxFeePerGas * 120n) / 100n;
+            const maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 120n) / 100n;
+            return {
+                gasLimit,
+                maxFeePerGas: this.maxBigInt(maxFeePerGas, maxPriorityFeePerGas),
+                maxPriorityFeePerGas,
+            };
+        }
         return {
-            gasLimit: (estimatedGas * 120n) / 100n,
-            ...(block?.baseFeePerGas != null
-                ? {
-                    maxFeePerGas: (feeData.maxFeePerGas * 120n) / 100n,
-                    maxPriorityFeePerGas: (feeData.maxPriorityFeePerGas * 150n) / 100n,
-                }
-                : {
-                    gasPrice: (feeData.gasPrice * 120n) / 100n,
-                }),
+            gasLimit,
+            gasPrice: (feeData.gasPrice * 120n) / 100n,
         };
     }
     async send(from, sendTransaction, contractOption) {
