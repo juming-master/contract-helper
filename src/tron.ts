@@ -439,7 +439,12 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
     } = transformContractCallArgs<"tron">(contractOption, "tron");
     const functionFragment = method.fragment;
     const provider = this.provider;
-    const feeParams = await this.getFeeParams();
+    const fee = await this.getFeeParams();
+    const feeParams = fee.feeLimit
+      ? {
+          feeLimit: Number(fee.feeLimit.toString()),
+        }
+      : {};
     const transaction = await provider.transactionBuilder.triggerSmartContract(
       address,
       functionFragment.format("sighash"),

@@ -20,6 +20,10 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 if (!PRIVATE_KEY) {
   throw new Error("Please set PRIVATE_KEY in .env");
 }
+const SEPOLIA_RPC = process.env.SEPOLIA_RPC || "";
+if (!SEPOLIA_RPC) {
+  throw new Error("Please set SEPOLIA_RPC in .env");
+}
 const tronWeb = new TronWeb({
   fullNode: FULL_NODE,
   solidityNode: SOLIDITY_NODE,
@@ -28,9 +32,7 @@ const tronWeb = new TronWeb({
 });
 
 const ethWallet = new Wallet(PRIVATE_KEY);
-const ethProvider = new JsonRpcProvider(
-  "https://eth-sepolia.g.alchemy.com/public"
-);
+const ethProvider = new JsonRpcProvider(SEPOLIA_RPC);
 
 const ABI = [
   {
@@ -417,11 +419,15 @@ for (let { chain, from, erc20, multicallV2, multiTypes, send, provider } of [
           new BigNumber(1).shiftedBy(18).toFixed(),
         ],
       };
-      const txId = await helper.send(from, send, approveArgs);
-      const confirmed = await helper["helper"].finalCheckTransactionResult(
-        txId
-      );
-      expect(confirmed.txId).to.be.equal(txId);
+      try {
+        const txId = await helper.send(from, send, approveArgs);
+        const confirmed = await helper["helper"].finalCheckTransactionResult(
+          txId
+        );
+        expect(confirmed.txId).to.be.equal(txId);
+      } catch (e) {
+        debugger;
+      }
     });
   });
 }

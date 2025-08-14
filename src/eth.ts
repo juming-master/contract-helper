@@ -334,6 +334,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     const feeCalculation = this.feeCalculation;
     if (feeCalculation) {
       return await feeCalculation({
+        latestBlockBaseFeePerGas: block?.baseFeePerGas ?? undefined,
         estimatedGas,
         gasPrice: feeData.gasPrice ?? undefined,
         maxFeePerGas: feeData.maxFeePerGas ?? undefined,
@@ -342,13 +343,13 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     }
     const gasLimit = (estimatedGas * 120n) / 100n;
     if (
-      block?.baseFeePerGas != null &&
+      block?.baseFeePerGas &&
       feeData.maxFeePerGas &&
       feeData.maxPriorityFeePerGas
     ) {
-      const maxFeePerGas = (feeData.maxFeePerGas! * 120n) / 100n;
-      const maxPriorityFeePerGas =
-        (feeData.maxPriorityFeePerGas! * 120n) / 100n;
+      const maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 120n) / 100n;
+      const maxFeePerGas =
+        (block.baseFeePerGas * 1125n) / 1000n + maxPriorityFeePerGas;
       return {
         gasLimit,
         maxFeePerGas: this.maxBigInt(maxFeePerGas, maxPriorityFeePerGas),

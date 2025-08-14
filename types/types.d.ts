@@ -152,22 +152,23 @@ export interface EvmFormatValue {
 }
 export interface SetTronFee {
     (): Promise<{
-        feeLimit: bigint;
+        feeLimit?: bigint;
     }>;
 }
 export type SetEvmFee = {
     (networkFee: {
+        latestBlockBaseFeePerGas?: bigint;
         maxFeePerGas?: bigint;
         maxPriorityFeePerGas?: bigint;
         estimatedGas: bigint;
         gasPrice?: bigint;
     }): Promise<{
-        maxFeePerGas: bigint;
-        maxPriorityFeePerGas: bigint;
-        gasLimit: bigint;
+        maxFeePerGas?: bigint;
+        maxPriorityFeePerGas?: bigint;
+        gasLimit?: bigint;
     } | {
-        gasPrice: bigint;
-        gasLimit: bigint;
+        gasPrice?: bigint;
+        gasLimit?: bigint;
     }>;
 };
 export type ContractHelperOptions<Chain extends ChainType> = {
