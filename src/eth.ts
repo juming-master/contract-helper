@@ -21,10 +21,14 @@ import wait from "wait";
 import { ContractHelperBase } from "./contract-helper-base";
 import {
   Contract,
+  Eip1193Provider,
   FunctionFragment,
   Interface,
+  JsonRpcApiProvider,
   TransactionReceipt,
+  WebSocketProvider,
   getAddress,
+  parseUnits,
 } from "ethers";
 import BigNumber from "bignumber.js";
 import { TransactionReceiptError } from "./errors";
@@ -326,6 +330,103 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     return args.reduce((a, b) => (a > b ? a : b));
   }
 
+  /**
+   * Calculate the next block's baseFee according to EIP-1559 formula.
+   *
+   * @param parentBaseFee Base fee of the parent block (wei)
+   * @param gasUsed Gas used in the parent block
+   * @param gasTarget Target gas (half of block gas limit)
+   * @returns Predicted baseFeePerGas for the next block (wei)
+   */
+  private calcNextBaseFee(
+    parentBaseFee: bigint,
+    gasUsed: bigint,
+    gasTarget: bigint
+  ) {
+    const delta = gasUsed - gasTarget;
+    // Base fee changes by (baseFee * delta / gasTarget) / 8 (max ±12.5% per block)
+    return parentBaseFee + (parentBaseFee * delta) / gasTarget / 8n;
+  }
+
+  /**
+   * Get gas parameters for a "fast confirmation" EIP-1559 transaction
+   * with next-block baseFee prediction.
+   *
+   * @param provider ethers.js Provider instance
+   * @param blocksToCheck Number of historical blocks to sample for priority fee
+   * @param priorityFeeExtraGwei Extra tip to add on top of historical max priority fee (gwei)
+   * @returns Gas params: baseFee, predictedBaseFee, maxPriorityFeePerGas, maxFeePerGas
+   */
+  async getFastGasParamsWithPrediction(
+    blocksToCheck = 10,
+    priorityFeeExtraGwei = 1
+  ) {
+    const provider = this.runner.provider!;
+    // Get the latest block to retrieve current baseFeePerGas and gas usage
+    const latestBlock = await provider.getBlock("latest");
+    if (
+      !latestBlock?.baseFeePerGas ||
+      !latestBlock?.gasUsed ||
+      !latestBlock?.gasLimit
+    ) {
+      throw new Error(
+        "Current network does not support EIP-1559 (no baseFeePerGas found)"
+      );
+    }
+    const baseFee = latestBlock.baseFeePerGas;
+    const gasUsed = latestBlock.gasUsed;
+    const gasTarget = latestBlock.gasLimit / 2n;
+
+    // Predict the next block's baseFee
+    const predictedBaseFee = this.calcNextBaseFee(baseFee, gasUsed, gasTarget);
+
+    // Fetch fee history to analyze recent priority fees
+    if (
+      typeof (provider as unknown as JsonRpcApiProvider).send !== "function"
+    ) {
+      throw new Error(`Provider dosn't support eip1193`);
+    }
+    const feeHistory: {
+      baseFeePerBlobGas: string[];
+      baseFeePerGas: string[];
+      blobGasUsedRatio: number[];
+      gasUsedRatio: number[];
+      oldestBlock: string;
+      reward: string[][];
+    } = await (provider as unknown as JsonRpcApiProvider).send(
+      "eth_feeHistory",
+      [
+        `0x${blocksToCheck.toString(16)}`, // number of blocks to check
+        "latest", // end block
+        [50], // use median (50th percentile) priority fee
+      ]
+    );
+
+    // Flatten rewards array and convert from hex to bigint
+    const priorityFees = feeHistory.reward
+      .flat()
+      .map((hex: string) => BigInt(hex));
+
+    // Get the highest observed priority fee from recent history
+    const historicalMaxPriority = priorityFees.length
+      ? priorityFees.reduce((a, b) => (a > b ? a : b))
+      : parseUnits("2", "gwei"); // default to 2 gwei if no data
+
+    // Add extra tip to ensure fast confirmation
+    const maxPriorityFeePerGas =
+      historicalMaxPriority +
+      parseUnits(priorityFeeExtraGwei.toString(), "gwei");
+
+    // Total maxFee = predicted baseFee + tip
+    const maxFeePerGas = predictedBaseFee + maxPriorityFeePerGas;
+
+    return {
+      baseFee: predictedBaseFee,
+      maxPriorityFeePerGas,
+      maxFeePerGas,
+    };
+  }
+
   private async getGasParams(tx: EvmTransactionRequest) {
     const provider = this.runner.provider!;
     const block = await provider.getBlock("latest");
@@ -347,9 +448,16 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       feeData.maxFeePerGas &&
       feeData.maxPriorityFeePerGas
     ) {
-      const maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 120n) / 100n;
-      const maxFeePerGas =
-        (block.baseFeePerGas * 1125n) / 1000n + maxPriorityFeePerGas;
+      let maxFeePerGas: bigint, maxPriorityFeePerGas: bigint;
+      try {
+        const gas = await this.getFastGasParamsWithPrediction(10, 2);
+        maxFeePerGas = gas.maxFeePerGas;
+        maxPriorityFeePerGas = gas.maxPriorityFeePerGas;
+      } catch (e) {
+        maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 120n) / 100n;
+        maxFeePerGas =
+          (block.baseFeePerGas * 1125n) / 1000n + maxPriorityFeePerGas;
+      }
       return {
         gasLimit,
         maxFeePerGas: this.maxBigInt(maxFeePerGas, maxPriorityFeePerGas),

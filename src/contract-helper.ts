@@ -28,11 +28,11 @@ import { Provider as EthProvider } from "ethers";
 import { TriggerSmartContractOptions } from "tronweb/lib/esm/types";
 
 export class ContractHelper<Chain extends ChainType> {
-  private helper: Chain extends "tron" ? TronContractHelper : EthContractHelper;
+  public helper: Chain extends "tron" ? TronContractHelper : EthContractHelper;
   private pendingQueries: ContractQuery<any>[] = [];
   private debounceExecuteLazyCalls: DebouncedFunction<() => any>;
   private multicallMaxPendingLength: number;
-  private isTron: boolean;
+  public isTron: boolean;
 
   /**
    * Constructor options for ContractHelper.

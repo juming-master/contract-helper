@@ -11,6 +11,7 @@ import { getAddress, hexlify, keccak256, toUtf8Bytes, Wallet } from "ethers";
 import { JsonRpcProvider } from "ethers";
 import { config } from "dotenv";
 import sinon from "sinon";
+import { EthContractHelper } from "../src/eth";
 config();
 
 const FULL_NODE = "https://nile.trongrid.io";
