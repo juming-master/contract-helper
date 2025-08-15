@@ -1,11 +1,13 @@
 import { ContractCallArgs, MultiCallArgs, TransactionOption, ContractQuery, ContractQueryTrigger, ContractQueryCallback, SendTransaction, SimpleTransactionResult, TronContractCallOptions, EvmContractCallOptions, ChainType, ContractSendArgs } from "./types";
 import { ContractHelperOptions } from "./types";
+import { TronContractHelper } from "./tron";
+import { EthContractHelper } from "./eth";
 export declare class ContractHelper<Chain extends ChainType> {
-    private helper;
+    helper: Chain extends "tron" ? TronContractHelper : EthContractHelper;
     private pendingQueries;
     private debounceExecuteLazyCalls;
     private multicallMaxPendingLength;
-    private isTron;
+    isTron: boolean;
     /**
      * Constructor options for ContractHelper.
      *
