@@ -385,8 +385,14 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             type: 2,
             from,
         };
-        const gasParams = await this.getGasParams(tx);
-        const txParams = { ...gasParams, ...tx };
+        let txParams = { ...tx };
+        try {
+            const gasParams = await this.getGasParams(tx);
+            txParams = { ...gasParams, ...tx };
+        }
+        catch (e) {
+            console.error(e.message);
+        }
         if (this.simulate) {
             try {
                 await provider.call({ ...txParams, from });
