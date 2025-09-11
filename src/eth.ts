@@ -429,9 +429,12 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
 
   private async getGasParams(tx: EvmTransactionRequest) {
     const provider = this.runner.provider!;
-    const block = await provider.getBlock("latest");
-    const estimatedGas = await provider.estimateGas(tx);
-    const feeData = await provider.getFeeData();
+    const [block, estimatedGas, feeData] = await Promise.all([
+      retry(() => provider.getBlock("latest"), 5, 100),
+      retry(() => provider.estimateGas(tx), 5, 100),
+      retry(() => provider.getFeeData(), 5, 100),
+    ]);
+
     const feeCalculation = this.feeCalculation;
     if (feeCalculation) {
       return await feeCalculation({
@@ -483,8 +486,11 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       args = [],
     } = transformContractCallArgs<"evm">(contractOption, "evm");
     const provider = this.runner.provider!;
-    const chainId = (await provider.getNetwork()).chainId;
-    const nonce = await provider.getTransactionCount(from);
+    const [network, nonce] = await Promise.all([
+      retry(() => provider.getNetwork(), 5, 100),
+      retry(() => provider.getTransactionCount(from), 5, 100),
+    ]);
+    const chainId = network.chainId;
     const interf = new Interface(abi);
     const data = interf.encodeFunctionData(method.fragment, args);
     const tx: any = {
