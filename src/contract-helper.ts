@@ -17,6 +17,7 @@ import {
   EvmRunner,
   TronProvider,
   SetEvmFee,
+  SetTronFee,
 } from "./types";
 import { runWithCallback, map, retry } from "./helper";
 import debounce, { DebouncedFunction } from "debounce";
@@ -61,7 +62,8 @@ export class ContractHelper<Chain extends ChainType> {
         ? new TronContractHelper(
             multicallAddr,
             provider as TronProvider,
-            options.formatValue as TronFormatValue
+            options.formatValue as TronFormatValue,
+            options.feeCalculation as SetTronFee
           )
         : new EthContractHelper(
             multicallAddr,

@@ -38,7 +38,7 @@ class ContractHelper {
         this.multicallMaxPendingLength = options.multicallMaxLazyCallsLength ?? 10;
         this.isTron = chain === "tron";
         this.helper = (chain === "tron"
-            ? new tron_1.TronContractHelper(multicallAddr, provider, options.formatValue)
+            ? new tron_1.TronContractHelper(multicallAddr, provider, options.formatValue, options.feeCalculation)
             : new eth_1.EthContractHelper(multicallAddr, provider, options.simulateBeforeSend ?? true, options.formatValue, options.feeCalculation));
         this.addLazyCall = this.addLazyCall.bind(this);
         this.debounceExecuteLazyCalls = (0, debounce_1.default)(() => {

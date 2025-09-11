@@ -5,6 +5,8 @@ import {
   ChainType,
   EvmSendTransaction,
   SendTransaction,
+  SetEvmFee,
+  SetTronFee,
   TronSendTransaction,
 } from "../src";
 import { getAddress, hexlify, keccak256, toUtf8Bytes, Wallet } from "ethers";
@@ -426,6 +428,52 @@ for (let { chain, from, erc20, multicallV2, multiTypes, send, provider } of [
           txId
         );
         expect(confirmed.txId).to.be.equal(txId);
+      } catch (e) {
+        debugger;
+      }
+    });
+
+    it("should send approve transaction with feeCalculation", async () => {
+      this.timeout(200000000);
+      const approveArgs = {
+        address: erc20,
+        abi: [
+          {
+            constant: false,
+            inputs: [
+              { name: "_spender", type: "address" },
+              { name: "_value", type: "uint256" },
+            ],
+            name: "approve",
+            outputs: [{ name: "success", type: "bool" }],
+            type: "function",
+          },
+        ],
+        method: "approve",
+        args: [
+          "0x67940FB0e23A1c91A35a71fc2C8D8b17413fB1d2",
+          new BigNumber(1).shiftedBy(18).toFixed(),
+        ],
+      };
+      const tronFeeCalc: SetTronFee = async function () {
+        return { feeLimit: 50_000_000n };
+      };
+      const evmFeeCalc: SetEvmFee = async function ({ provider, tx }) {
+        const estimatedGas = await provider.estimateGas(tx);
+        return {
+          gasLimit: (estimatedGas * BigInt(120)) / BigInt(100),
+        };
+      };
+      debugger;
+      const h = new ContractHelper<ChainType>({
+        chain,
+        provider,
+        multicallV2Address: multicallV2,
+        feeCalculation: chain === "tron" ? tronFeeCalc : evmFeeCalc,
+      });
+      try {
+        const txId = await h.send(from, send, approveArgs);
+        expect(txId).to.be.equal(txId);
       } catch (e) {
         debugger;
       }
