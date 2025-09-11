@@ -183,6 +183,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
     simulate;
     formatValueType;
     feeCalculation;
+    chainId = null;
     constructor(multicallContractAddress, runner, simulate, formatValue, feeCalculation) {
         super(multicallContractAddress);
         if (!runner.provider) {
@@ -330,21 +331,18 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
     }
     async getGasParams(tx) {
         const provider = this.runner.provider;
+        const feeCalculation = this.feeCalculation;
+        if (feeCalculation) {
+            return await feeCalculation({
+                provider,
+                tx,
+            });
+        }
         const [block, estimatedGas, feeData] = await Promise.all([
             (0, helper_1.retry)(() => provider.getBlock("latest"), 5, 100),
             (0, helper_1.retry)(() => provider.estimateGas(tx), 5, 100),
             (0, helper_1.retry)(() => provider.getFeeData(), 5, 100),
         ]);
-        const feeCalculation = this.feeCalculation;
-        if (feeCalculation) {
-            return await feeCalculation({
-                latestBlockBaseFeePerGas: block?.baseFeePerGas ?? undefined,
-                estimatedGas,
-                gasPrice: feeData.gasPrice ?? undefined,
-                maxFeePerGas: feeData.maxFeePerGas ?? undefined,
-                maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? undefined,
-            });
-        }
         const gasLimit = (estimatedGas * 120n) / 100n;
         if (block?.baseFeePerGas &&
             feeData.maxFeePerGas &&
@@ -374,11 +372,16 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
     async send(from, sendTransaction, contractOption) {
         const { address, abi, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "evm");
         const provider = this.runner.provider;
-        const [network, nonce] = await Promise.all([
-            (0, helper_1.retry)(() => provider.getNetwork(), 5, 100),
+        const [chainId, nonce] = await Promise.all([
+            (0, helper_1.retry)(async () => {
+                if (this.chainId === null) {
+                    const network = await provider.getNetwork();
+                    this.chainId = network.chainId;
+                }
+                return this.chainId;
+            }, 5, 100),
             (0, helper_1.retry)(() => provider.getTransactionCount(from), 5, 100),
         ]);
-        const chainId = network.chainId;
         const interf = new ethers_1.Interface(abi);
         const data = interf.encodeFunctionData(method.fragment, args);
         const tx = {

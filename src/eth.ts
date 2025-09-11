@@ -206,6 +206,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
   private simulate: boolean;
   private formatValueType: EvmFormatValue;
   private feeCalculation?: SetEvmFee;
+  private chainId: bigint | null = null;
 
   constructor(
     multicallContractAddress: string,
@@ -429,22 +430,19 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
 
   private async getGasParams(tx: EvmTransactionRequest) {
     const provider = this.runner.provider!;
+    const feeCalculation = this.feeCalculation;
+    if (feeCalculation) {
+      return await feeCalculation({
+        provider,
+        tx,
+      });
+    }
     const [block, estimatedGas, feeData] = await Promise.all([
       retry(() => provider.getBlock("latest"), 5, 100),
       retry(() => provider.estimateGas(tx), 5, 100),
       retry(() => provider.getFeeData(), 5, 100),
     ]);
 
-    const feeCalculation = this.feeCalculation;
-    if (feeCalculation) {
-      return await feeCalculation({
-        latestBlockBaseFeePerGas: block?.baseFeePerGas ?? undefined,
-        estimatedGas,
-        gasPrice: feeData.gasPrice ?? undefined,
-        maxFeePerGas: feeData.maxFeePerGas ?? undefined,
-        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? undefined,
-      });
-    }
     const gasLimit = (estimatedGas * 120n) / 100n;
     if (
       block?.baseFeePerGas &&
@@ -486,11 +484,20 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       args = [],
     } = transformContractCallArgs<"evm">(contractOption, "evm");
     const provider = this.runner.provider!;
-    const [network, nonce] = await Promise.all([
-      retry(() => provider.getNetwork(), 5, 100),
+    const [chainId, nonce] = await Promise.all([
+      retry(
+        async () => {
+          if (this.chainId === null) {
+            const network = await provider.getNetwork();
+            this.chainId = network.chainId;
+          }
+          return this.chainId;
+        },
+        5,
+        100
+      ),
       retry(() => provider.getTransactionCount(from), 5, 100),
     ]);
-    const chainId = network.chainId;
     const interf = new Interface(abi);
     const data = interf.encodeFunctionData(method.fragment, args);
     const tx: any = {

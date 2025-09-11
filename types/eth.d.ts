@@ -5,6 +5,7 @@ export declare class EthContractHelper extends ContractHelperBase<"evm"> {
     private simulate;
     private formatValueType;
     private feeCalculation?;
+    private chainId;
     constructor(multicallContractAddress: string, runner: EvmRunner, simulate: boolean, formatValue: EvmFormatValue, feeCalculation: SetEvmFee);
     private buildAggregateCall;
     private buildUpAggregateResponse;

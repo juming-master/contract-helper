@@ -218,17 +218,11 @@ export interface EvmFormatValue {
 }
 
 export interface SetTronFee {
-  (): Promise<{ feeLimit?: bigint }>;
+  (args: { provider: TronProvider }): Promise<{ feeLimit?: bigint }>;
 }
 
 export type SetEvmFee = {
-  (networkFee: {
-    latestBlockBaseFeePerGas?: bigint;
-    maxFeePerGas?: bigint;
-    maxPriorityFeePerGas?: bigint;
-    estimatedGas: bigint;
-    gasPrice?: bigint;
-  }): Promise<
+  (args: { provider: EvmProvider; tx: EvmTransactionRequest }): Promise<
     | {
         maxFeePerGas?: bigint;
         maxPriorityFeePerGas?: bigint;

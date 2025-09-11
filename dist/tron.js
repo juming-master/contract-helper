@@ -351,10 +351,10 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         }
         return broadcast.transaction.txID;
     }
-    async getFeeParams() {
+    async getFeeParams(provider) {
         const feeCalculation = this.feeCalculation;
         if (feeCalculation) {
-            return await feeCalculation();
+            return await feeCalculation({ provider });
         }
         return {};
     }
@@ -362,7 +362,7 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         const { address, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "tron");
         const functionFragment = method.fragment;
         const provider = this.provider;
-        const fee = await this.getFeeParams();
+        const fee = await this.getFeeParams(provider);
         const feeParams = fee.feeLimit
             ? {
                 feeLimit: Number(fee.feeLimit.toString()),
