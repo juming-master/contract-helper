@@ -532,7 +532,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     txId: string,
     confirmations: number
   ): Promise<TransactionReceipt> {
-    return retry(
+    const receipt = await retry(
       async () => {
         const receipt = await this.runner.provider!.waitForTransaction(
           txId,
@@ -542,18 +542,19 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
           await wait(1000);
           return this.checkReceipt(txId, confirmations);
         }
-        if (!receipt.status) {
-          throw new TransactionReceiptError("Transaction execute reverted", {
-            txId: txId,
-            blockNumber:
-              confirmations >= 5 ? BigInt(receipt.blockNumber) : undefined,
-          });
-        }
         return receipt;
       },
       10,
       1000
     );
+    if (!receipt.status) {
+      throw new TransactionReceiptError("Transaction execute reverted", {
+        txId: txId,
+        blockNumber:
+          confirmations >= 5 ? BigInt(receipt.blockNumber) : undefined,
+      });
+    }
+    return receipt;
   }
 
   public async finalCheckTransactionResult(

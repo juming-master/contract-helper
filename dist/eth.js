@@ -414,20 +414,21 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         return txId;
     }
     async checkReceipt(txId, confirmations) {
-        return (0, helper_1.retry)(async () => {
+        const receipt = await (0, helper_1.retry)(async () => {
             const receipt = await this.runner.provider.waitForTransaction(txId, confirmations);
             if (!receipt) {
                 await (0, wait_1.default)(1000);
                 return this.checkReceipt(txId, confirmations);
             }
-            if (!receipt.status) {
-                throw new errors_1.TransactionReceiptError("Transaction execute reverted", {
-                    txId: txId,
-                    blockNumber: confirmations >= 5 ? BigInt(receipt.blockNumber) : undefined,
-                });
-            }
             return receipt;
         }, 10, 1000);
+        if (!receipt.status) {
+            throw new errors_1.TransactionReceiptError("Transaction execute reverted", {
+                txId: txId,
+                blockNumber: confirmations >= 5 ? BigInt(receipt.blockNumber) : undefined,
+            });
+        }
+        return receipt;
     }
     async finalCheckTransactionResult(txId) {
         const receipt = await this.checkReceipt(txId, 5);
