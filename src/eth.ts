@@ -428,6 +428,16 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     };
   }
 
+  private calcTransactionType(tx: EvmTransactionRequest) {
+    if (tx.type !== null && tx.type !== undefined && !Number.isNaN(tx.type)) {
+      return Number(tx.type);
+    }
+    if (tx.gasPrice !== undefined && tx.gasPrice !== null) {
+      return 1;
+    }
+    return 2;
+  }
+
   private async getGasParams(tx: EvmTransactionRequest) {
     const provider = this.runner.provider!;
     const feeCalculation = this.feeCalculation;
@@ -506,13 +516,13 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       data,
       nonce,
       chainId,
-      type: 2,
       from,
     };
     let txParams = { ...tx };
     try {
       const gasParams = await this.getGasParams(tx);
-      txParams = { ...gasParams, ...tx };
+      const type = this.calcTransactionType(txParams);
+      txParams = { ...gasParams, ...tx, type };
     } catch (e: any) {
       console.error(e.message);
     }
