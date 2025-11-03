@@ -338,10 +338,10 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         }
         return 2;
     }
-    async getGasParams(tx) {
+    async getGasParams(tx, ignoreFeeCalculation) {
         const provider = this.runner.provider;
         const feeCalculation = this.feeCalculation;
-        if (feeCalculation) {
+        if (feeCalculation && !ignoreFeeCalculation) {
             return await feeCalculation({
                 provider,
                 tx,
@@ -403,7 +403,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         };
         let txParams = { ...tx };
         try {
-            const gasParams = await this.getGasParams(tx);
+            const gasParams = await this.getGasParams(tx, false);
             const type = this.calcTransactionType(txParams);
             txParams = { ...gasParams, ...tx, type };
         }
@@ -419,8 +419,22 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
                 throw err;
             }
         }
-        const txId = await sendTransaction({ ...txParams }, provider, "evm");
-        return txId;
+        try {
+            const txId = await sendTransaction({ ...txParams }, provider, "evm");
+            return txId;
+        }
+        catch (e) {
+            if (e.error &&
+                e.error.code === -32000 &&
+                e.error.message === "transaction underpriced") {
+                const gasParams = await this.getGasParams(tx, true);
+                const type = this.calcTransactionType(txParams);
+                txParams = { ...gasParams, ...tx, type };
+                const txId = await sendTransaction({ ...txParams }, provider, "evm");
+                return txId;
+            }
+            throw e;
+        }
     }
     async checkReceipt(txId, confirmations) {
         const receipt = await (0, helper_1.retry)(async () => {

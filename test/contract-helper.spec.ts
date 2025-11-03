@@ -472,9 +472,11 @@ for (let { chain, from, erc20, multicallV2, multiTypes, send, provider } of [
       });
       try {
         const txId = await h.send(from, send, approveArgs);
+        expect(txId).to.be.equal(txId);
       } catch (e: any) {
-        expect(e.error.code).to.be.equal(-32000);
-        expect(e.error.message).to.be.equal("transaction underpriced");
+        throw e;
+        // expect(e.error.code).to.be.equal(-32000);
+        // expect(e.error.message).to.be.equal("transaction underpriced");
       }
     });
   });

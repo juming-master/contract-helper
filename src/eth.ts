@@ -21,12 +21,10 @@ import wait from "wait";
 import { ContractHelperBase } from "./contract-helper-base";
 import {
   Contract,
-  Eip1193Provider,
   FunctionFragment,
   Interface,
   JsonRpcApiProvider,
   TransactionReceipt,
-  WebSocketProvider,
   getAddress,
   parseUnits,
 } from "ethers";
@@ -438,10 +436,13 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     return 2;
   }
 
-  private async getGasParams(tx: EvmTransactionRequest) {
+  private async getGasParams(
+    tx: EvmTransactionRequest,
+    ignoreFeeCalculation: boolean
+  ) {
     const provider = this.runner.provider!;
     const feeCalculation = this.feeCalculation;
-    if (feeCalculation) {
+    if (feeCalculation && !ignoreFeeCalculation) {
       return await feeCalculation({
         provider,
         tx,
@@ -520,7 +521,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     };
     let txParams = { ...tx };
     try {
-      const gasParams = await this.getGasParams(tx);
+      const gasParams = await this.getGasParams(tx, false);
       const type = this.calcTransactionType(txParams);
       txParams = { ...gasParams, ...tx, type };
     } catch (e: any) {
@@ -534,8 +535,23 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
         throw err;
       }
     }
-    const txId = await sendTransaction({ ...txParams }, provider, "evm");
-    return txId;
+    try {
+      const txId = await sendTransaction({ ...txParams }, provider, "evm");
+      return txId;
+    } catch (e: any) {
+      if (
+        e.error &&
+        e.error.code === -32000 &&
+        e.error.message === "transaction underpriced"
+      ) {
+        const gasParams = await this.getGasParams(tx, true);
+        const type = this.calcTransactionType(txParams);
+        txParams = { ...gasParams, ...tx, type };
+        const txId = await sendTransaction({ ...txParams }, provider, "evm");
+        return txId;
+      }
+      throw e;
+    }
   }
 
   private async checkReceipt(
