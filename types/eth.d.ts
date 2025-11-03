@@ -41,6 +41,7 @@ export declare class EthContractHelper extends ContractHelperBase<"evm"> {
         maxPriorityFeePerGas: bigint;
         maxFeePerGas: bigint;
     }>;
+    private calcTransactionType;
     private getGasParams;
     send(from: string, sendTransaction: SendTransaction<"evm">, contractOption: ContractSendArgs<"evm">): Promise<string>;
     private checkReceipt;

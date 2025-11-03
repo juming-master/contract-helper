@@ -329,6 +329,15 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             maxFeePerGas,
         };
     }
+    calcTransactionType(tx) {
+        if (tx.type !== null && tx.type !== undefined && !Number.isNaN(tx.type)) {
+            return Number(tx.type);
+        }
+        if (tx.gasPrice !== undefined && tx.gasPrice !== null) {
+            return 1;
+        }
+        return 2;
+    }
     async getGasParams(tx) {
         const provider = this.runner.provider;
         const feeCalculation = this.feeCalculation;
@@ -390,13 +399,13 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             data,
             nonce,
             chainId,
-            type: 2,
             from,
         };
         let txParams = { ...tx };
         try {
             const gasParams = await this.getGasParams(tx);
-            txParams = { ...gasParams, ...tx };
+            const type = this.calcTransactionType(txParams);
+            txParams = { ...gasParams, ...tx, type };
         }
         catch (e) {
             console.error(e.message);
