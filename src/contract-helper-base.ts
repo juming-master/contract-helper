@@ -10,6 +10,8 @@ import {
   CheckTransactionType,
   ChainType,
   ContractSendArgs,
+  EvmTransactionRequest,
+  TronTransactionRequest,
 } from "./types";
 import { TransactionReceiptError } from "./errors";
 
@@ -30,6 +32,13 @@ export abstract class ContractHelperBase<Chain extends ChainType> {
   abstract call<T>(contractOption: ContractCallArgs): Promise<T>;
 
   abstract multicall<T>(calls: MultiCallArgs[]): Promise<T>;
+
+  abstract createTransaction(
+    from: string,
+    args: ContractSendArgs<Chain>
+  ): Promise<
+    Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest
+  >;
 
   abstract send(
     from: string,

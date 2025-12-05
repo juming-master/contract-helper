@@ -358,7 +358,7 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         }
         return {};
     }
-    async send(from, sendTransaction, contractOption) {
+    async createTransaction(from, contractOption) {
         const { address, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "tron");
         const functionFragment = method.fragment;
         const provider = this.provider;
@@ -372,7 +372,11 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
             type: el.type,
             value: args[i],
         })), from);
-        let txId = await sendTransaction(transaction.transaction, this.provider, "tron");
+        return transaction.transaction;
+    }
+    async send(from, sendTransaction, contractOption) {
+        const transaction = await this.createTransaction(from, contractOption);
+        let txId = await sendTransaction(transaction, this.provider, "tron");
         return txId;
     }
     async fastCheckTransactionResult(txId) {

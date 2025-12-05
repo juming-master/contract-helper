@@ -430,10 +430,41 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     if (tx.type !== null && tx.type !== undefined && !Number.isNaN(tx.type)) {
       return Number(tx.type);
     }
-    if (tx.gasPrice !== undefined && tx.gasPrice !== null) {
-      return 1;
+    const hasEip1559Fees =
+      (tx.maxFeePerGas !== undefined && tx.maxFeePerGas !== null) ||
+      (tx.maxPriorityFeePerGas !== undefined &&
+        tx.maxPriorityFeePerGas !== null);
+    if (hasEip1559Fees) {
+      return 2; // Type 2 (EIP-1559)
     }
-    return 2;
+    const hasLegacyGasPrice = tx.gasPrice !== undefined && tx.gasPrice !== null;
+    if (hasLegacyGasPrice) {
+      // 检查 accessList 字段是否存在，如果存在且不为空，则为 Type 1
+      const hasAccessList =
+        tx.accessList !== undefined &&
+        tx.accessList !== null &&
+        tx.accessList?.length;
+
+      if (hasAccessList) {
+        return 1; // Type 1 (EIP-2930)
+      }
+
+      return 0; // Type 0 (Legacy)
+    }
+
+    return 0; // Default 0, is supported by all EVM.
+  }
+
+  private hasGasParams(tx: EvmTransactionRequest) {
+    const hasEip1559Fees =
+      (tx.maxFeePerGas !== undefined && tx.maxFeePerGas !== null) ||
+      (tx.maxPriorityFeePerGas !== undefined &&
+        tx.maxPriorityFeePerGas !== null);
+    if (hasEip1559Fees) {
+      return true;
+    }
+    const hasLegacyGasPrice = tx.gasPrice !== undefined && tx.gasPrice !== null;
+    return hasLegacyGasPrice;
   }
 
   private async getGasParams(
@@ -482,11 +513,10 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     };
   }
 
-  async send(
+  async createTransaction(
     from: string,
-    sendTransaction: SendTransaction<"evm">,
     contractOption: ContractSendArgs<"evm">
-  ) {
+  ): Promise<EvmTransactionRequest> {
     const {
       address,
       abi,
@@ -494,6 +524,8 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       options,
       args = [],
     } = transformContractCallArgs<"evm">(contractOption, "evm");
+    const interf = new Interface(abi);
+    const data = interf.encodeFunctionData(method.fragment, args);
     const provider = this.runner.provider!;
     const [chainId, nonce] = await Promise.all([
       retry(
@@ -509,9 +541,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       ),
       retry(() => provider.getTransactionCount(from), 5, 100),
     ]);
-    const interf = new Interface(abi);
-    const data = interf.encodeFunctionData(method.fragment, args);
-    const tx: any = {
+    let tx: EvmTransactionRequest = {
       ...options,
       to: address,
       data,
@@ -519,35 +549,42 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       chainId,
       from,
     };
-    let txParams = { ...tx };
-    try {
+    if (!this.hasGasParams(tx)) {
       const gasParams = await this.getGasParams(tx, false);
-      const type = this.calcTransactionType(txParams);
-      txParams = { ...gasParams, ...tx, type };
-    } catch (e: any) {
-      console.error(e.message);
+      tx = {
+        ...tx,
+        ...gasParams,
+      };
     }
+    const type = this.calcTransactionType(tx);
+    tx = { ...tx, type };
+    return tx;
+  }
+
+  async send(
+    from: string,
+    sendTransaction: SendTransaction<"evm">,
+    contractOption: ContractSendArgs<"evm">
+  ) {
+    const provider = this.runner.provider!;
+    const transaction = await this.createTransaction(from, contractOption);
     if (this.simulate) {
-      try {
-        await provider.call({ ...txParams, from });
-      } catch (err: any) {
-        console.error(err);
-        throw err;
-      }
+      await provider.call(transaction);
     }
     try {
-      const txId = await sendTransaction({ ...txParams }, provider, "evm");
+      const txId = await sendTransaction(transaction, provider, "evm");
       return txId;
     } catch (e: any) {
+      const error = e.error || {};
       if (
-        e.error &&
-        e.error.code === -32000 &&
-        e.error.message === "transaction underpriced"
+        error.code === -32000 &&
+        error.message === "transaction underpriced"
       ) {
-        const gasParams = await this.getGasParams(tx, true);
-        const type = this.calcTransactionType(txParams);
-        txParams = { ...gasParams, ...tx, type };
-        const txId = await sendTransaction({ ...txParams }, provider, "evm");
+        const gasParams = await this.getGasParams(transaction, true);
+        let tx = { ...transaction, ...gasParams };
+        const type = this.calcTransactionType(gasParams);
+        tx = { ...tx, type };
+        const txId = await sendTransaction(tx, provider, "evm");
         return txId;
       }
       throw e;

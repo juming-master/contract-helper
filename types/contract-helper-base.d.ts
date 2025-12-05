@@ -1,4 +1,4 @@
-import { AggregateCall, AggregateContractResponse, ContractCallArgs, MultiCallArgs as MultiCallArgs, SimpleTransactionResult, TransactionOption, SendTransaction, ChainType, ContractSendArgs } from "./types";
+import { AggregateCall, AggregateContractResponse, ContractCallArgs, MultiCallArgs as MultiCallArgs, SimpleTransactionResult, TransactionOption, SendTransaction, ChainType, ContractSendArgs, EvmTransactionRequest, TronTransactionRequest } from "./types";
 export interface Contract {
     multicall(calls: AggregateCall[]): AggregateContractResponse;
 }
@@ -10,6 +10,7 @@ export declare abstract class ContractHelperBase<Chain extends ChainType> {
     constructor(multicallAddress: string);
     abstract call<T>(contractOption: ContractCallArgs): Promise<T>;
     abstract multicall<T>(calls: MultiCallArgs[]): Promise<T>;
+    abstract createTransaction(from: string, args: ContractSendArgs<Chain>): Promise<Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest>;
     abstract send(from: string, sendFn: SendTransaction<Chain>, args: ContractSendArgs<Chain>): Promise<string>;
     abstract fastCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
     abstract finalCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;

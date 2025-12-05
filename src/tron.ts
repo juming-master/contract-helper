@@ -426,11 +426,10 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
     return {};
   }
 
-  async send(
+  async createTransaction(
     from: string,
-    sendTransaction: SendTransaction<"tron">,
     contractOption: ContractSendArgs<"tron">
-  ) {
+  ): Promise<TronTransactionRequest<ContractParamter>> {
     const {
       address,
       method,
@@ -455,11 +454,16 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
       })),
       from
     );
-    let txId = await sendTransaction(
-      transaction.transaction,
-      this.provider,
-      "tron"
-    );
+    return transaction.transaction;
+  }
+
+  async send(
+    from: string,
+    sendTransaction: SendTransaction<"tron">,
+    contractOption: ContractSendArgs<"tron">
+  ) {
+    const transaction = await this.createTransaction(from, contractOption);
+    let txId = await sendTransaction(transaction, this.provider, "tron");
     return txId;
   }
 
