@@ -433,6 +433,63 @@ for (let { chain, from, erc20, multicallV2, multiTypes, send, provider } of [
       }
     });
 
+    it("should create approve transaction", async () => {
+      this.timeout(200000000);
+      const approveArgs = {
+        address: erc20,
+        abi: [
+          {
+            constant: false,
+            inputs: [
+              { name: "_spender", type: "address" },
+              { name: "_value", type: "uint256" },
+            ],
+            name: "approve",
+            outputs: [{ name: "success", type: "bool" }],
+            type: "function",
+          },
+        ],
+        method: "approve",
+        args: [
+          "0x67940FB0e23A1c91A35a71fc2C8D8b17413fB1d2",
+          new BigNumber(1).shiftedBy(18).toFixed(),
+        ],
+      };
+      const tronFeeCalc: SetTronFee = async function () {
+        return { feeLimit: 50_000_000n };
+      };
+      const evmFeeCalc: SetEvmFee = async function ({ provider, tx }) {
+        const estimatedGas = await provider.estimateGas(tx);
+        return {
+          gasLimit: (estimatedGas * BigInt(120)) / BigInt(100),
+        };
+      };
+      const h = new ContractHelper<ChainType>({
+        chain,
+        provider,
+        multicallV2Address: multicallV2,
+        feeCalculation: chain === "tron" ? tronFeeCalc : evmFeeCalc,
+      });
+      try {
+        const tx = await h.createTransaction(from, approveArgs);
+        const data =
+          "095ea7b300000000000000000000000067940fb0e23a1c91a35a71fc2c8d8b17413fb1d20000000000000000000000000000000000000000000000000de0b6b3a7640000";
+        if (chain === "tron") {
+          // @ts-ignore
+          expect(tx.raw_data.contract[0].parameter.value.data).to.be.equal(
+            data
+          );
+        } else {
+          // @ts-ignore
+          expect(tx.data).to.be.equal(`0x${data}`);
+        }
+      } catch (e: any) {
+        throw e;
+        // expect(e.error.code).to.be.equal(-32000);
+        // expect(e.error.message).to.be.equal("transaction underpriced");
+      }
+    });
+
     it("should send approve transaction with feeCalculation", async () => {
       this.timeout(200000000);
       const approveArgs = {

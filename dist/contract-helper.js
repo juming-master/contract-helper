@@ -178,6 +178,25 @@ class ContractHelper {
         return txId;
     }
     /**
+     * Create a unsigned transaction.
+     *
+     * @param from - The address of the signer who will sign the transaction.
+     * @param args - The contract send arguments including:
+     *                 - `address` (string): The contract address to call.
+     *                 - `method` (string): The method name or full method signature (e.g., "transfer" or "function transfer(address,uint256) returns (bool)").
+     *                 - `args` (any[]): The parameters to pass to the method.
+     *                 - `abi` (optional, any[]): The ABI definition of the contract. If `method` is a full signature, ABI may be omitted.
+     *                 - `options` (optional): transaction options such as gasLimit, feeLimit, or value.
+     *
+     * @returns A Promise resolving to the transaction.
+     */
+    async createTransaction(from, args) {
+        const tx = await this.helper.createTransaction(from, 
+        // @ts-ignore
+        args);
+        return tx;
+    }
+    /**
      * Sends a signed transaction with additional chain-specific options.
      *
      * @param from - The address of the signer who signed the transaction.

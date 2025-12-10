@@ -2,6 +2,8 @@ import { ContractCallArgs, MultiCallArgs, TransactionOption, ContractQuery, Cont
 import { ContractHelperOptions } from "./types";
 import { TronContractHelper } from "./tron";
 import { EthContractHelper } from "./eth";
+import { TransactionRequest } from "ethers";
+import { ContractParamter, Transaction } from "tronweb/lib/esm/types";
 export declare class ContractHelper<Chain extends ChainType> {
     helper: Chain extends "tron" ? TronContractHelper : EthContractHelper;
     private pendingQueries;
@@ -145,6 +147,20 @@ export declare class ContractHelper<Chain extends ChainType> {
      * );
      */
     send(from: string, sendTransaction: SendTransaction<Chain>, args: ContractSendArgs<Chain>): Promise<string>;
+    /**
+     * Create a unsigned transaction.
+     *
+     * @param from - The address of the signer who will sign the transaction.
+     * @param args - The contract send arguments including:
+     *                 - `address` (string): The contract address to call.
+     *                 - `method` (string): The method name or full method signature (e.g., "transfer" or "function transfer(address,uint256) returns (bool)").
+     *                 - `args` (any[]): The parameters to pass to the method.
+     *                 - `abi` (optional, any[]): The ABI definition of the contract. If `method` is a full signature, ABI may be omitted.
+     *                 - `options` (optional): transaction options such as gasLimit, feeLimit, or value.
+     *
+     * @returns A Promise resolving to the transaction.
+     */
+    createTransaction(from: string, args: ContractSendArgs<Chain>): Promise<Chain extends "tron" ? Transaction<ContractParamter> : TransactionRequest>;
     /**
      * Sends a signed transaction with additional chain-specific options.
      *

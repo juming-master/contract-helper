@@ -25,8 +25,12 @@ import { v4 as uuidv4 } from "uuid";
 import { ContractHelperOptions } from "./types";
 import { TronContractHelper } from "./tron";
 import { EthContractHelper } from "./eth";
-import { Provider as EthProvider } from "ethers";
-import { TriggerSmartContractOptions } from "tronweb/lib/esm/types";
+import { Provider as EthProvider, TransactionRequest } from "ethers";
+import {
+  ContractParamter,
+  Transaction,
+  TriggerSmartContractOptions,
+} from "tronweb/lib/esm/types";
 
 export class ContractHelper<Chain extends ChainType> {
   public helper: Chain extends "tron" ? TronContractHelper : EthContractHelper;
@@ -220,6 +224,30 @@ export class ContractHelper<Chain extends ChainType> {
       args
     );
     return txId;
+  }
+
+  /**
+   * Create a unsigned transaction.
+   *
+   * @param from - The address of the signer who will sign the transaction.
+   * @param args - The contract send arguments including:
+   *                 - `address` (string): The contract address to call.
+   *                 - `method` (string): The method name or full method signature (e.g., "transfer" or "function transfer(address,uint256) returns (bool)").
+   *                 - `args` (any[]): The parameters to pass to the method.
+   *                 - `abi` (optional, any[]): The ABI definition of the contract. If `method` is a full signature, ABI may be omitted.
+   *                 - `options` (optional): transaction options such as gasLimit, feeLimit, or value.
+   *
+   * @returns A Promise resolving to the transaction.
+   */
+  async createTransaction(from: string, args: ContractSendArgs<Chain>) {
+    const tx = await this.helper.createTransaction(
+      from,
+      // @ts-ignore
+      args
+    );
+    return tx as Chain extends "tron"
+      ? Transaction<ContractParamter>
+      : TransactionRequest;
   }
 
   /**
