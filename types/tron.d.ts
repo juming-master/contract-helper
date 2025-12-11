@@ -25,6 +25,7 @@ export declare class TronContractHelper extends ContractHelperBase<"tron"> {
     static broadcastTransaction(provider: TronProvider, signedTransaction: SignedTransaction<ContractParamter>): Promise<string>;
     private getFeeParams;
     createTransaction(from: string, contractOption: ContractSendArgs<"tron">): Promise<TronTransactionRequest<ContractParamter>>;
+    sendTransaction(transaction: TronTransactionRequest<ContractParamter>, sendTransaction: SendTransaction<"tron">): Promise<string>;
     send(from: string, sendTransaction: SendTransaction<"tron">, contractOption: ContractSendArgs<"tron">): Promise<string>;
     fastCheckTransactionResult(txId: string): any;
     finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;

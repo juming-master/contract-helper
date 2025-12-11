@@ -561,13 +561,11 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     return tx;
   }
 
-  async send(
-    from: string,
-    sendTransaction: SendTransaction<"evm">,
-    contractOption: ContractSendArgs<"evm">
+  async sendTransaction(
+    transaction: EvmTransactionRequest,
+    sendTransaction: SendTransaction<"evm">
   ) {
     const provider = this.runner.provider!;
-    const transaction = await this.createTransaction(from, contractOption);
     if (this.simulate) {
       await provider.call(transaction);
     }
@@ -589,6 +587,15 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       }
       throw e;
     }
+  }
+
+  async send(
+    from: string,
+    sendTransaction: SendTransaction<"evm">,
+    contractOption: ContractSendArgs<"evm">
+  ) {
+    const transaction = await this.createTransaction(from, contractOption);
+    return await this.sendTransaction(transaction, sendTransaction);
   }
 
   private async checkReceipt(

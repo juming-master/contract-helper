@@ -147,6 +147,7 @@ export declare class ContractHelper<Chain extends ChainType> {
      * );
      */
     send(from: string, sendTransaction: SendTransaction<Chain>, args: ContractSendArgs<Chain>): Promise<string>;
+    sendTransaction(tx: Chain extends "tron" ? Transaction<ContractParamter> : TransactionRequest, send: SendTransaction<Chain>): Promise<string>;
     /**
      * Create a unsigned transaction.
      *

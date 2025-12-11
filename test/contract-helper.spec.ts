@@ -483,6 +483,14 @@ for (let { chain, from, erc20, multicallV2, multiTypes, send, provider } of [
           // @ts-ignore
           expect(tx.data).to.be.equal(`0x${data}`);
         }
+        try {
+          const txId = await h.sendTransaction(tx, send);
+          expect(txId).to.be.equal(txId);
+        } catch (e: any) {
+          throw e;
+          // expect(e.error.code).to.be.equal(-32000);
+          // expect(e.error.message).to.be.equal("transaction underpriced");
+        }
       } catch (e: any) {
         throw e;
         // expect(e.error.code).to.be.equal(-32000);

@@ -436,9 +436,8 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         tx = { ...tx, type };
         return tx;
     }
-    async send(from, sendTransaction, contractOption) {
+    async sendTransaction(transaction, sendTransaction) {
         const provider = this.runner.provider;
-        const transaction = await this.createTransaction(from, contractOption);
         if (this.simulate) {
             await provider.call(transaction);
         }
@@ -459,6 +458,10 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             }
             throw e;
         }
+    }
+    async send(from, sendTransaction, contractOption) {
+        const transaction = await this.createTransaction(from, contractOption);
+        return await this.sendTransaction(transaction, sendTransaction);
     }
     async checkReceipt(txId, confirmations) {
         const receipt = await (0, helper_1.retry)(async () => {

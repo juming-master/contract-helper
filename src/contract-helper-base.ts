@@ -40,6 +40,13 @@ export abstract class ContractHelperBase<Chain extends ChainType> {
     Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest
   >;
 
+  abstract sendTransaction(
+    transaction: Chain extends "evm"
+      ? EvmTransactionRequest
+      : TronTransactionRequest,
+    sendTransaction: SendTransaction<Chain>
+  ): Promise<string>;
+
   abstract send(
     from: string,
     sendFn: SendTransaction<Chain>,

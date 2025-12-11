@@ -226,6 +226,16 @@ export class ContractHelper<Chain extends ChainType> {
     return txId;
   }
 
+  sendTransaction(
+    tx: Chain extends "tron"
+      ? Transaction<ContractParamter>
+      : TransactionRequest,
+    send: SendTransaction<Chain>
+  ) {
+    // @ts-ignore
+    return this.helper.sendTransaction(tx, send);
+  }
+
   /**
    * Create a unsigned transaction.
    *

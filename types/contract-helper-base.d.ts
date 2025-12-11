@@ -11,6 +11,7 @@ export declare abstract class ContractHelperBase<Chain extends ChainType> {
     abstract call<T>(contractOption: ContractCallArgs): Promise<T>;
     abstract multicall<T>(calls: MultiCallArgs[]): Promise<T>;
     abstract createTransaction(from: string, args: ContractSendArgs<Chain>): Promise<Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest>;
+    abstract sendTransaction(transaction: Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest, sendTransaction: SendTransaction<Chain>): Promise<string>;
     abstract send(from: string, sendFn: SendTransaction<Chain>, args: ContractSendArgs<Chain>): Promise<string>;
     abstract fastCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
     abstract finalCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;

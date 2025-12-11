@@ -45,6 +45,7 @@ export declare class EthContractHelper extends ContractHelperBase<"evm"> {
     private hasGasParams;
     private getGasParams;
     createTransaction(from: string, contractOption: ContractSendArgs<"evm">): Promise<EvmTransactionRequest>;
+    sendTransaction(transaction: EvmTransactionRequest, sendTransaction: SendTransaction<"evm">): Promise<string>;
     send(from: string, sendTransaction: SendTransaction<"evm">, contractOption: ContractSendArgs<"evm">): Promise<string>;
     private checkReceipt;
     finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;

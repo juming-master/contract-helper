@@ -177,6 +177,10 @@ class ContractHelper {
         sendTransaction, args);
         return txId;
     }
+    sendTransaction(tx, send) {
+        // @ts-ignore
+        return this.helper.sendTransaction(tx, send);
+    }
     /**
      * Create a unsigned transaction.
      *
