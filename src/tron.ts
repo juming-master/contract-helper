@@ -13,6 +13,7 @@ import {
   TronFormatValue,
   TronTransactionRequest,
   SetTronFee,
+  SendOptions,
 } from "./types";
 import {
   buildAggregateCall,
@@ -418,17 +419,18 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
     return broadcast.transaction.txID;
   }
 
-  private async getFeeParams(provider: TronProvider) {
+  private async getFeeParams(provider: TronProvider, options?: SendOptions) {
     const feeCalculation = this.feeCalculation;
     if (feeCalculation) {
-      return await feeCalculation({ provider });
+      return await feeCalculation({ provider, options });
     }
     return {};
   }
 
   async createTransaction(
     from: string,
-    contractOption: ContractSendArgs<"tron">
+    contractOption: ContractSendArgs<"tron">,
+    sendOptions?: SendOptions
   ): Promise<TronTransactionRequest<ContractParamter>> {
     const {
       address,
@@ -438,7 +440,7 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
     } = transformContractCallArgs<"tron">(contractOption, "tron");
     const functionFragment = method.fragment;
     const provider = this.provider;
-    const fee = await this.getFeeParams(provider);
+    const fee = await this.getFeeParams(provider, sendOptions);
     const feeParams = fee.feeLimit
       ? {
           feeLimit: Number(fee.feeLimit.toString()),
@@ -459,7 +461,8 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
 
   async sendTransaction(
     transaction: TronTransactionRequest<ContractParamter>,
-    sendTransaction: SendTransaction<"tron">
+    sendTransaction: SendTransaction<"tron">,
+    options?: SendOptions
   ) {
     let txId = await sendTransaction(transaction, this.provider, "tron");
     return txId;
@@ -468,10 +471,15 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
   async send(
     from: string,
     sendTransaction: SendTransaction<"tron">,
-    contractOption: ContractSendArgs<"tron">
+    contractOption: ContractSendArgs<"tron">,
+    options?: SendOptions
   ) {
-    const transaction = await this.createTransaction(from, contractOption);
-    return await this.sendTransaction(transaction, sendTransaction);
+    const transaction = await this.createTransaction(
+      from,
+      contractOption,
+      options
+    );
+    return await this.sendTransaction(transaction, sendTransaction, options);
   }
 
   async fastCheckTransactionResult(txId: string) {

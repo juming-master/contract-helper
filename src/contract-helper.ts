@@ -18,6 +18,7 @@ import {
   TronProvider,
   SetEvmFee,
   SetTronFee,
+  SendOptions,
 } from "./types";
 import { runWithCallback, map, retry } from "./helper";
 import debounce, { DebouncedFunction } from "debounce";
@@ -215,13 +216,15 @@ export class ContractHelper<Chain extends ChainType> {
   async send(
     from: string,
     sendTransaction: SendTransaction<Chain>,
-    args: ContractSendArgs<Chain>
+    args: ContractSendArgs<Chain>,
+    options?: SendOptions
   ) {
     const txId = await this.helper.send(
       from,
       // @ts-ignore
       sendTransaction,
-      args
+      args,
+      options
     );
     return txId;
   }
@@ -230,10 +233,15 @@ export class ContractHelper<Chain extends ChainType> {
     tx: Chain extends "tron"
       ? Transaction<ContractParamter>
       : TransactionRequest,
-    send: SendTransaction<Chain>
+    send: SendTransaction<Chain>,
+    options?: SendOptions
   ) {
-    // @ts-ignore
-    return this.helper.sendTransaction(tx, send);
+    return this.helper.sendTransaction(
+      // @ts-ignore
+      tx,
+      send,
+      options
+    );
   }
 
   /**
@@ -249,11 +257,16 @@ export class ContractHelper<Chain extends ChainType> {
    *
    * @returns A Promise resolving to the transaction.
    */
-  async createTransaction(from: string, args: ContractSendArgs<Chain>) {
+  async createTransaction(
+    from: string,
+    args: ContractSendArgs<Chain>,
+    options?: SendOptions
+  ) {
     const tx = await this.helper.createTransaction(
       from,
       // @ts-ignore
-      args
+      args,
+      options
     );
     return tx as Chain extends "tron"
       ? Transaction<ContractParamter>
@@ -327,6 +340,7 @@ export class ContractHelper<Chain extends ChainType> {
     options?: {
       trx?: TronContractCallOptions;
       eth?: EvmContractCallOptions;
+      options?: SendOptions;
     }
   ) {
     const call: ContractSendArgs<Chain> = {
@@ -335,7 +349,7 @@ export class ContractHelper<Chain extends ChainType> {
         ? options?.trx
         : options?.eth) as ContractSendArgs<Chain>["options"],
     };
-    return this.send(from, sendTransaction, call);
+    return this.send(from, sendTransaction, call, options?.options);
   }
 
   /**
@@ -437,6 +451,7 @@ export class ContractHelper<Chain extends ChainType> {
     options?: {
       trx?: TronContractCallOptions;
       eth?: EvmContractCallOptions;
+      options?: SendOptions;
     },
     callback?: TransactionOption
   ) {

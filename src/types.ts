@@ -58,6 +58,10 @@ export interface ContractSendArgs<Chain extends ChainType>
     : EvmContractCallOptions;
 }
 
+export interface SendOptions {
+  estimateFee?: boolean;
+}
+
 export interface Call {
   /**
    * your contract method name
@@ -218,11 +222,17 @@ export interface EvmFormatValue {
 }
 
 export interface SetTronFee {
-  (args: { provider: TronProvider }): Promise<{ feeLimit?: bigint }>;
+  (args: { provider: TronProvider; options?: SendOptions }): Promise<{
+    feeLimit?: bigint;
+  }>;
 }
 
 export type SetEvmFee = {
-  (args: { provider: EvmProvider; tx: EvmTransactionRequest }): Promise<
+  (args: {
+    provider: EvmProvider;
+    tx: EvmTransactionRequest;
+    options?: SendOptions;
+  }): Promise<
     | {
         maxFeePerGas?: bigint;
         maxPriorityFeePerGas?: bigint;

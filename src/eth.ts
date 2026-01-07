@@ -7,6 +7,7 @@ import {
   EvmRunner,
   EvmTransactionRequest,
   MultiCallArgs,
+  SendOptions,
   SendTransaction,
   SetEvmFee,
   SimpleTransactionResult,
@@ -469,7 +470,8 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
 
   private async getGasParams(
     tx: EvmTransactionRequest,
-    ignoreFeeCalculation: boolean
+    ignoreFeeCalculation: boolean,
+    options?: SendOptions
   ) {
     const provider = this.runner.provider!;
     const feeCalculation = this.feeCalculation;
@@ -477,15 +479,26 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       return await feeCalculation({
         provider,
         tx,
+        options,
       });
     }
+    const estimateFeeRequired = this.getEstimatedFeeRequired(options);
     const [block, estimatedGas, feeData] = await Promise.all([
       retry(() => provider.getBlock("latest"), 5, 100),
-      retry(() => provider.estimateGas(tx), 5, 100),
+      retry(
+        async () => {
+          return estimateFeeRequired
+            ? await provider.estimateGas(tx)
+            : undefined;
+        },
+        5,
+        100
+      ),
       retry(() => provider.getFeeData(), 5, 100),
     ]);
 
-    const gasLimit = (estimatedGas * 120n) / 100n;
+    const gasLimit =
+      estimatedGas !== undefined ? (estimatedGas * 120n) / 100n : undefined;
     if (
       block?.baseFeePerGas &&
       feeData.maxFeePerGas &&
@@ -515,7 +528,8 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
 
   async createTransaction(
     from: string,
-    contractOption: ContractSendArgs<"evm">
+    contractOption: ContractSendArgs<"evm">,
+    sendOptions?: SendOptions
   ): Promise<EvmTransactionRequest> {
     const {
       address,
@@ -550,7 +564,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       from,
     };
     if (!this.hasGasParams(tx)) {
-      const gasParams = await this.getGasParams(tx, false);
+      const gasParams = await this.getGasParams(tx, false, sendOptions);
       tx = {
         ...tx,
         ...gasParams,
@@ -563,7 +577,8 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
 
   async sendTransaction(
     transaction: EvmTransactionRequest,
-    sendTransaction: SendTransaction<"evm">
+    sendTransaction: SendTransaction<"evm">,
+    options?: SendOptions
   ) {
     const provider = this.runner.provider!;
     if (this.simulate) {
@@ -578,7 +593,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
         error.code === -32000 &&
         error.message === "transaction underpriced"
       ) {
-        const gasParams = await this.getGasParams(transaction, true);
+        const gasParams = await this.getGasParams(transaction, true, options);
         let tx = { ...transaction, ...gasParams };
         const type = this.calcTransactionType(gasParams);
         tx = { ...tx, type };
@@ -592,10 +607,15 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
   async send(
     from: string,
     sendTransaction: SendTransaction<"evm">,
-    contractOption: ContractSendArgs<"evm">
+    contractOption: ContractSendArgs<"evm">,
+    options?: SendOptions
   ) {
-    const transaction = await this.createTransaction(from, contractOption);
-    return await this.sendTransaction(transaction, sendTransaction);
+    const transaction = await this.createTransaction(
+      from,
+      contractOption,
+      options
+    );
+    return await this.sendTransaction(transaction, sendTransaction, options);
   }
 
   private async checkReceipt(

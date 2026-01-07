@@ -12,6 +12,7 @@ import {
   ContractSendArgs,
   EvmTransactionRequest,
   TronTransactionRequest,
+  SendOptions,
 } from "./types";
 import { TransactionReceiptError } from "./errors";
 
@@ -35,7 +36,8 @@ export abstract class ContractHelperBase<Chain extends ChainType> {
 
   abstract createTransaction(
     from: string,
-    args: ContractSendArgs<Chain>
+    args: ContractSendArgs<Chain>,
+    options?: SendOptions
   ): Promise<
     Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest
   >;
@@ -50,7 +52,8 @@ export abstract class ContractHelperBase<Chain extends ChainType> {
   abstract send(
     from: string,
     sendFn: SendTransaction<Chain>,
-    args: ContractSendArgs<Chain>
+    args: ContractSendArgs<Chain>,
+    options?: SendOptions
   ): Promise<string>;
 
   abstract fastCheckTransactionResult(
@@ -60,6 +63,10 @@ export abstract class ContractHelperBase<Chain extends ChainType> {
   abstract finalCheckTransactionResult(
     txID: string
   ): Promise<SimpleTransactionResult>;
+
+  protected getEstimatedFeeRequired(options?: SendOptions) {
+    return options?.estimateFee ?? true;
+  }
 
   public async checkTransactionResult(
     txID: string,
