@@ -325,7 +325,9 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
       response,
       (fragment, data) => {
         const funcABI: FunctionFragment = JSON.parse(fragment.format("json"));
-        return this.provider.utils.abi.decodeParamsV2ByABI(funcABI, data);
+        return this.provider.utils.abi.decodeParamsV2ByABI(
+          // @ts-ignore
+          funcABI, data);
       },
       (value, fragment) => {
         return this.handleContractValue(value, fragment);
