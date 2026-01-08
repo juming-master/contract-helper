@@ -544,6 +544,9 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     const [chainId, nonce] = await Promise.all([
       retry(
         async () => {
+          if (options?.chainId) {
+            return options.chainId;
+          }
           if (this.chainId === null) {
             const network = await provider.getNetwork();
             this.chainId = network.chainId;
@@ -553,7 +556,16 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
         5,
         100
       ),
-      retry(() => provider.getTransactionCount(from), 5, 100),
+      retry(
+        async () => {
+          if (typeof options?.nonce === "number") {
+            return options.nonce;
+          }
+          return await provider.getTransactionCount(from);
+        },
+        5,
+        100
+      ),
     ]);
     let tx: EvmTransactionRequest = {
       ...options,

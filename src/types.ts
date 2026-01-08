@@ -35,7 +35,7 @@ export { TronWeb as TronSigner } from "tronweb";
 export type TronContractCallOptions = TriggerSmartContractOptions;
 export type EvmContractCallOptions = Omit<
   TransactionLike,
-  "to" | "from" | "nonce" | "data" | "chainId" | "type"
+  "to" | "from" | "data" | "type"
 >;
 
 export type ChainType = "tron" | "evm";
