@@ -13,7 +13,6 @@ import {
   AggregateContractResponse,
   ChainType,
   ContractCall,
-  ContractCallArgs,
   ContractCallResults,
   ContractCallReturnContext,
   ContractSendArgs,

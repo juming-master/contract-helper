@@ -18,7 +18,8 @@ export function retry<T>(
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     function attempt(retries: number): void {
-      fn()
+      Promise.resolve()
+        .then(fn)
         .then(resolve)
         .catch((err) => {
           if (retries > 0) {
