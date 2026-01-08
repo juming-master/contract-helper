@@ -21,6 +21,7 @@ import { retry } from "./helper";
 import wait from "wait";
 import { ContractHelperBase } from "./contract-helper-base";
 import {
+  BlockTag,
   Contract,
   FunctionFragment,
   Interface,
@@ -499,18 +500,16 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
 
     const gasLimit =
       estimatedGas !== undefined ? (estimatedGas * 120n) / 100n : undefined;
-    if (
-      block?.baseFeePerGas &&
-      feeData.maxFeePerGas &&
-      feeData.maxPriorityFeePerGas
-    ) {
+    if (block?.baseFeePerGas) {
       let maxFeePerGas: bigint, maxPriorityFeePerGas: bigint;
       try {
         const gas = await this.getFastGasParamsWithPrediction(10, 2);
         maxFeePerGas = gas.maxFeePerGas;
         maxPriorityFeePerGas = gas.maxPriorityFeePerGas;
       } catch (e) {
-        maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 120n) / 100n;
+        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas
+          ? (feeData.maxPriorityFeePerGas * 120n) / 100n
+          : parseUnits("2", "gwei");
         maxFeePerGas =
           (block.baseFeePerGas * 1125n) / 1000n + maxPriorityFeePerGas;
       }
@@ -607,7 +606,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       ) {
         const gasParams = await this.getGasParams(transaction, true, options);
         let tx = { ...transaction, ...gasParams };
-        const type = this.calcTransactionType(gasParams);
+        const type = this.calcTransactionType(tx);
         tx = { ...tx, type };
         const txId = await sendTransaction(tx, provider, "evm");
         return txId;
@@ -632,17 +631,14 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
 
   private async checkReceipt(
     txId: string,
-    confirmations: number
+    referencedBlockNumber: number
   ): Promise<TransactionReceipt> {
     const receipt = await retry(
       async () => {
-        const receipt = await this.runner.provider!.waitForTransaction(
-          txId,
-          confirmations
-        );
-        if (!receipt) {
+        const receipt = await this.runner.provider!.waitForTransaction(txId, 1);
+        if (!receipt || receipt.blockNumber > referencedBlockNumber) {
           await wait(1000);
-          return this.checkReceipt(txId, confirmations);
+          return this.checkReceipt(txId, referencedBlockNumber);
         }
         return receipt;
       },
@@ -652,17 +648,33 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     if (!receipt.status) {
       throw new TransactionReceiptError("Transaction execute reverted", {
         txId: txId,
-        blockNumber:
-          confirmations >= 5 ? BigInt(receipt.blockNumber) : undefined,
+        blockNumber: BigInt(receipt.blockNumber),
       });
     }
     return receipt;
   }
 
+  private getBlock(blockTag: BlockTag, txId: string) {
+    return retry(
+      async () => {
+        const block = await this.runner.provider!.getBlock(blockTag);
+        if (!block) {
+          throw new TransactionReceiptError(`Fetch ${blockTag} block failed`, {
+            txId,
+          });
+        }
+        return block;
+      },
+      10,
+      1000
+    );
+  }
+
   public async finalCheckTransactionResult(
     txId: string
   ): Promise<SimpleTransactionResult> {
-    const receipt = await this.checkReceipt(txId, 5);
+    const block = await this.getBlock("finalized", txId);
+    const receipt = await this.checkReceipt(txId, block.number);
     return {
       blockNumber: BigInt(receipt.blockNumber),
       txId: receipt.hash,

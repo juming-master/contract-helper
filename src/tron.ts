@@ -327,7 +327,9 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
         const funcABI: FunctionFragment = JSON.parse(fragment.format("json"));
         return this.provider.utils.abi.decodeParamsV2ByABI(
           // @ts-ignore
-          funcABI, data);
+          funcABI,
+          data
+        );
       },
       (value, fragment) => {
         return this.handleContractValue(value, fragment);
@@ -485,39 +487,37 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
   }
 
   async fastCheckTransactionResult(txId: string) {
-    return retry(
-      async () => {
-        const transaction = (await this.provider.trx.getTransaction(
+    const transaction = await retry(
+      async () =>
+        (await this.provider.trx.getTransaction(
           txId
-        )) as any as FastTransactionResult;
-        if (!transaction.ret?.length) {
-          await wait(1000);
-          return this.fastCheckTransactionResult(txId);
-        }
-        if (
-          !transaction.ret.every(
-            (result) => result.contractRet === CONTRACT_SUCCESS
-          )
-        ) {
-          throw new TransactionReceiptError(
-            transaction.ret
-              .filter((el) => el.contractRet !== CONTRACT_SUCCESS)
-              .map((el) => el.contractRet)
-              .join(","),
-            { txId: transaction.txID }
-          );
-        }
-        return { txId: transaction.txID };
-      },
+        )) as any as FastTransactionResult,
       10,
       1000
     );
+    if (!transaction.ret?.length) {
+      await wait(1000);
+      return this.fastCheckTransactionResult(txId);
+    }
+    if (
+      !transaction.ret.every(
+        (result) => result.contractRet === CONTRACT_SUCCESS
+      )
+    ) {
+      const txInfo = await this.finalCheckTransactionResult(txId);
+      return { txId: txInfo.txId };
+    }
+    return { txId: transaction.txID };
   }
 
   async finalCheckTransactionResult(
     txId: string
   ): Promise<SimpleTransactionResult> {
-    const output = await this.provider.trx.getTransactionInfo(txId);
+    const output = await retry(
+      async () => await this.provider.trx.getTransactionInfo(txId),
+      10,
+      1000
+    );
     if (!Object.keys(output).length) {
       await wait(3000);
       return this.finalCheckTransactionResult(txId);

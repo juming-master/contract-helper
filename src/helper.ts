@@ -49,7 +49,15 @@ export function runWithCallback<T>(
 ): Promise<T> {
   const promise = fn();
   if (callback) {
-    promise.then(callback.success).catch(callback.error);
+    promise
+      .then((value) => {
+        try {
+          callback.success?.(value);
+        } catch (err) {
+          callback.error?.(err);
+        }
+      })
+      .catch(callback.error);
   }
   return promise;
 }
