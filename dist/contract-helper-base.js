@@ -11,6 +11,9 @@ class ContractHelperBase {
     constructor(multicallAddress) {
         this.multicallAddress = multicallAddress;
     }
+    getEstimatedFeeRequired(options) {
+        return options?.estimateFee ?? true;
+    }
     async checkTransactionResult(txID, options = {}) {
         const checkOption = options.check ?? types_1.CheckTransactionType.Fast;
         if (checkOption === types_1.CheckTransactionType.Fast) {

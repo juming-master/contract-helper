@@ -279,7 +279,9 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
     buildUpAggregateResponse(multiCallArgs, response) {
         return (0, contract_utils_1.buildUpAggregateResponse)(multiCallArgs, response, (fragment, data) => {
             const funcABI = JSON.parse(fragment.format("json"));
-            return this.provider.utils.abi.decodeParamsV2ByABI(funcABI, data);
+            return this.provider.utils.abi.decodeParamsV2ByABI(
+            // @ts-ignore
+            funcABI, data);
         }, (value, fragment) => {
             return this.handleContractValue(value, fragment);
         }, "tron");
@@ -351,18 +353,18 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         }
         return broadcast.transaction.txID;
     }
-    async getFeeParams(provider) {
+    async getFeeParams(provider, options) {
         const feeCalculation = this.feeCalculation;
         if (feeCalculation) {
-            return await feeCalculation({ provider });
+            return await feeCalculation({ provider, options });
         }
         return {};
     }
-    async createTransaction(from, contractOption) {
+    async createTransaction(from, contractOption, sendOptions) {
         const { address, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "tron");
         const functionFragment = method.fragment;
         const provider = this.provider;
-        const fee = await this.getFeeParams(provider);
+        const fee = await this.getFeeParams(provider, sendOptions);
         const feeParams = fee.feeLimit
             ? {
                 feeLimit: Number(fee.feeLimit.toString()),
@@ -374,13 +376,13 @@ class TronContractHelper extends contract_helper_base_1.ContractHelperBase {
         })), from);
         return transaction.transaction;
     }
-    async sendTransaction(transaction, sendTransaction) {
+    async sendTransaction(transaction, sendTransaction, options) {
         let txId = await sendTransaction(transaction, this.provider, "tron");
         return txId;
     }
-    async send(from, sendTransaction, contractOption) {
-        const transaction = await this.createTransaction(from, contractOption);
-        return await this.sendTransaction(transaction, sendTransaction);
+    async send(from, sendTransaction, contractOption, options) {
+        const transaction = await this.createTransaction(from, contractOption, options);
+        return await this.sendTransaction(transaction, sendTransaction, options);
     }
     async fastCheckTransactionResult(txId) {
         return (0, helper_1.retry)(async () => {

@@ -171,15 +171,16 @@ class ContractHelper {
      *   }
      * );
      */
-    async send(from, sendTransaction, args) {
+    async send(from, sendTransaction, args, options) {
         const txId = await this.helper.send(from, 
         // @ts-ignore
-        sendTransaction, args);
+        sendTransaction, args, options);
         return txId;
     }
-    sendTransaction(tx, send) {
+    sendTransaction(tx, send, options) {
+        return this.helper.sendTransaction(
         // @ts-ignore
-        return this.helper.sendTransaction(tx, send);
+        tx, send, options);
     }
     /**
      * Create a unsigned transaction.
@@ -194,10 +195,10 @@ class ContractHelper {
      *
      * @returns A Promise resolving to the transaction.
      */
-    async createTransaction(from, args) {
+    async createTransaction(from, args, options) {
         const tx = await this.helper.createTransaction(from, 
         // @ts-ignore
-        args);
+        args, options);
         return tx;
     }
     /**
@@ -267,7 +268,7 @@ class ContractHelper {
                 ? options?.trx
                 : options?.eth),
         };
-        return this.send(from, sendTransaction, call);
+        return this.send(from, sendTransaction, call, options?.options);
     }
     /**
      * Checks the status or result of a blockchain transaction by its transaction ID.

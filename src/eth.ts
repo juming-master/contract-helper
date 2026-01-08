@@ -561,7 +561,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
           if (typeof options?.nonce === "number") {
             return options.nonce;
           }
-          return await provider.getTransactionCount(from);
+          return await provider.getTransactionCount(from, "pending");
         },
         5,
         100

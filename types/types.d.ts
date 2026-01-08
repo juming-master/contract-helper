@@ -11,7 +11,7 @@ export { Transaction as TronTransactionRequest, SignedTransaction as TronTransac
 export { TronWeb as TronProvider } from "tronweb";
 export { TronWeb as TronSigner } from "tronweb";
 export type TronContractCallOptions = TriggerSmartContractOptions;
-export type EvmContractCallOptions = Omit<TransactionLike, "to" | "from" | "nonce" | "data" | "chainId" | "type">;
+export type EvmContractCallOptions = Omit<TransactionLike, "to" | "from" | "data" | "type">;
 export type ChainType = "tron" | "evm";
 export interface ContractCallArgs {
     address: string;
@@ -24,6 +24,9 @@ export type MultiCallArgs = Omit<ContractCallArgs, "options"> & {
 };
 export interface ContractSendArgs<Chain extends ChainType> extends ContractCallArgs {
     options?: Chain extends "tron" ? TronContractCallOptions : EvmContractCallOptions;
+}
+export interface SendOptions {
+    estimateFee?: boolean;
 }
 export interface Call {
     /**
@@ -153,6 +156,7 @@ export interface EvmFormatValue {
 export interface SetTronFee {
     (args: {
         provider: TronProvider;
+        options?: SendOptions;
     }): Promise<{
         feeLimit?: bigint;
     }>;
@@ -161,6 +165,7 @@ export type SetEvmFee = {
     (args: {
         provider: EvmProvider;
         tx: EvmTransactionRequest;
+        options?: SendOptions;
     }): Promise<{
         maxFeePerGas?: bigint;
         maxPriorityFeePerGas?: bigint;

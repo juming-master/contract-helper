@@ -1,4 +1,4 @@
-import { ContractCallArgs, ContractSendArgs, MultiCallArgs, SendTransaction, SimpleTransactionResult, TronProvider, TronFormatValue, TronTransactionRequest, SetTronFee } from "./types";
+import { ContractCallArgs, ContractSendArgs, MultiCallArgs, SendTransaction, SimpleTransactionResult, TronProvider, TronFormatValue, TronTransactionRequest, SetTronFee, SendOptions } from "./types";
 import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
 import { ContractHelperBase } from "./contract-helper-base";
 export declare class TronContractHelper extends ContractHelperBase<"tron"> {
@@ -24,9 +24,9 @@ export declare class TronContractHelper extends ContractHelperBase<"tron"> {
     call<T>(contractCallArgs: ContractCallArgs): Promise<T>;
     static broadcastTransaction(provider: TronProvider, signedTransaction: SignedTransaction<ContractParamter>): Promise<string>;
     private getFeeParams;
-    createTransaction(from: string, contractOption: ContractSendArgs<"tron">): Promise<TronTransactionRequest<ContractParamter>>;
-    sendTransaction(transaction: TronTransactionRequest<ContractParamter>, sendTransaction: SendTransaction<"tron">): Promise<string>;
-    send(from: string, sendTransaction: SendTransaction<"tron">, contractOption: ContractSendArgs<"tron">): Promise<string>;
+    createTransaction(from: string, contractOption: ContractSendArgs<"tron">, sendOptions?: SendOptions): Promise<TronTransactionRequest<ContractParamter>>;
+    sendTransaction(transaction: TronTransactionRequest<ContractParamter>, sendTransaction: SendTransaction<"tron">, options?: SendOptions): Promise<string>;
+    send(from: string, sendTransaction: SendTransaction<"tron">, contractOption: ContractSendArgs<"tron">, options?: SendOptions): Promise<string>;
     fastCheckTransactionResult(txId: string): any;
     finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;
 }

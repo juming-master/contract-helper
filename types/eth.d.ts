@@ -1,4 +1,4 @@
-import { ContractCallArgs, ContractSendArgs, EvmFormatValue, EvmRunner, EvmTransactionRequest, MultiCallArgs, SendTransaction, SetEvmFee, SimpleTransactionResult } from "./types";
+import { ContractCallArgs, ContractSendArgs, EvmFormatValue, EvmRunner, EvmTransactionRequest, MultiCallArgs, SendOptions, SendTransaction, SetEvmFee, SimpleTransactionResult } from "./types";
 import { ContractHelperBase } from "./contract-helper-base";
 export declare class EthContractHelper extends ContractHelperBase<"evm"> {
     private runner;
@@ -44,9 +44,9 @@ export declare class EthContractHelper extends ContractHelperBase<"evm"> {
     private calcTransactionType;
     private hasGasParams;
     private getGasParams;
-    createTransaction(from: string, contractOption: ContractSendArgs<"evm">): Promise<EvmTransactionRequest>;
-    sendTransaction(transaction: EvmTransactionRequest, sendTransaction: SendTransaction<"evm">): Promise<string>;
-    send(from: string, sendTransaction: SendTransaction<"evm">, contractOption: ContractSendArgs<"evm">): Promise<string>;
+    createTransaction(from: string, contractOption: ContractSendArgs<"evm">, sendOptions?: SendOptions): Promise<EvmTransactionRequest>;
+    sendTransaction(transaction: EvmTransactionRequest, sendTransaction: SendTransaction<"evm">, options?: SendOptions): Promise<string>;
+    send(from: string, sendTransaction: SendTransaction<"evm">, contractOption: ContractSendArgs<"evm">, options?: SendOptions): Promise<string>;
     private checkReceipt;
     finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;
     fastCheckTransactionResult(txId: string): Promise<{

@@ -1,4 +1,4 @@
-import { AggregateCall, AggregateContractResponse, ContractCallArgs, MultiCallArgs as MultiCallArgs, SimpleTransactionResult, TransactionOption, SendTransaction, ChainType, ContractSendArgs, EvmTransactionRequest, TronTransactionRequest } from "./types";
+import { AggregateCall, AggregateContractResponse, ContractCallArgs, MultiCallArgs as MultiCallArgs, SimpleTransactionResult, TransactionOption, SendTransaction, ChainType, ContractSendArgs, EvmTransactionRequest, TronTransactionRequest, SendOptions } from "./types";
 export interface Contract {
     multicall(calls: AggregateCall[]): AggregateContractResponse;
 }
@@ -10,11 +10,12 @@ export declare abstract class ContractHelperBase<Chain extends ChainType> {
     constructor(multicallAddress: string);
     abstract call<T>(contractOption: ContractCallArgs): Promise<T>;
     abstract multicall<T>(calls: MultiCallArgs[]): Promise<T>;
-    abstract createTransaction(from: string, args: ContractSendArgs<Chain>): Promise<Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest>;
+    abstract createTransaction(from: string, args: ContractSendArgs<Chain>, options?: SendOptions): Promise<Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest>;
     abstract sendTransaction(transaction: Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest, sendTransaction: SendTransaction<Chain>): Promise<string>;
-    abstract send(from: string, sendFn: SendTransaction<Chain>, args: ContractSendArgs<Chain>): Promise<string>;
+    abstract send(from: string, sendFn: SendTransaction<Chain>, args: ContractSendArgs<Chain>, options?: SendOptions): Promise<string>;
     abstract fastCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
     abstract finalCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
+    protected getEstimatedFeeRequired(options?: SendOptions): boolean;
     checkTransactionResult(txID: string, options?: TransactionOption): Promise<SimpleTransactionResult>;
 }
 //# sourceMappingURL=contract-helper-base.d.ts.map

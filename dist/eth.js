@@ -362,21 +362,27 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         const hasLegacyGasPrice = tx.gasPrice !== undefined && tx.gasPrice !== null;
         return hasLegacyGasPrice;
     }
-    async getGasParams(tx, ignoreFeeCalculation) {
+    async getGasParams(tx, ignoreFeeCalculation, options) {
         const provider = this.runner.provider;
         const feeCalculation = this.feeCalculation;
         if (feeCalculation && !ignoreFeeCalculation) {
             return await feeCalculation({
                 provider,
                 tx,
+                options,
             });
         }
+        const estimateFeeRequired = this.getEstimatedFeeRequired(options);
         const [block, estimatedGas, feeData] = await Promise.all([
             (0, helper_1.retry)(() => provider.getBlock("latest"), 5, 100),
-            (0, helper_1.retry)(() => provider.estimateGas(tx), 5, 100),
+            (0, helper_1.retry)(async () => {
+                return estimateFeeRequired
+                    ? await provider.estimateGas(tx)
+                    : undefined;
+            }, 5, 100),
             (0, helper_1.retry)(() => provider.getFeeData(), 5, 100),
         ]);
-        const gasLimit = (estimatedGas * 120n) / 100n;
+        const gasLimit = estimatedGas !== undefined ? (estimatedGas * 120n) / 100n : undefined;
         if (block?.baseFeePerGas &&
             feeData.maxFeePerGas &&
             feeData.maxPriorityFeePerGas) {
@@ -402,20 +408,28 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             gasPrice: (feeData.gasPrice * 120n) / 100n,
         };
     }
-    async createTransaction(from, contractOption) {
+    async createTransaction(from, contractOption, sendOptions) {
         const { address, abi, method, options, args = [], } = (0, contract_utils_1.transformContractCallArgs)(contractOption, "evm");
         const interf = new ethers_1.Interface(abi);
         const data = interf.encodeFunctionData(method.fragment, args);
         const provider = this.runner.provider;
         const [chainId, nonce] = await Promise.all([
             (0, helper_1.retry)(async () => {
+                if (options?.chainId) {
+                    return options.chainId;
+                }
                 if (this.chainId === null) {
                     const network = await provider.getNetwork();
                     this.chainId = network.chainId;
                 }
                 return this.chainId;
             }, 5, 100),
-            (0, helper_1.retry)(() => provider.getTransactionCount(from), 5, 100),
+            (0, helper_1.retry)(async () => {
+                if (typeof options?.nonce === "number") {
+                    return options.nonce;
+                }
+                return await provider.getTransactionCount(from, "pending");
+            }, 5, 100),
         ]);
         let tx = {
             ...options,
@@ -426,7 +440,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             from,
         };
         if (!this.hasGasParams(tx)) {
-            const gasParams = await this.getGasParams(tx, false);
+            const gasParams = await this.getGasParams(tx, false, sendOptions);
             tx = {
                 ...tx,
                 ...gasParams,
@@ -436,7 +450,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         tx = { ...tx, type };
         return tx;
     }
-    async sendTransaction(transaction, sendTransaction) {
+    async sendTransaction(transaction, sendTransaction, options) {
         const provider = this.runner.provider;
         if (this.simulate) {
             await provider.call(transaction);
@@ -449,7 +463,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             const error = e.error || {};
             if (error.code === -32000 &&
                 error.message === "transaction underpriced") {
-                const gasParams = await this.getGasParams(transaction, true);
+                const gasParams = await this.getGasParams(transaction, true, options);
                 let tx = { ...transaction, ...gasParams };
                 const type = this.calcTransactionType(gasParams);
                 tx = { ...tx, type };
@@ -459,9 +473,9 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             throw e;
         }
     }
-    async send(from, sendTransaction, contractOption) {
-        const transaction = await this.createTransaction(from, contractOption);
-        return await this.sendTransaction(transaction, sendTransaction);
+    async send(from, sendTransaction, contractOption, options) {
+        const transaction = await this.createTransaction(from, contractOption, options);
+        return await this.sendTransaction(transaction, sendTransaction, options);
     }
     async checkReceipt(txId, confirmations) {
         const receipt = await (0, helper_1.retry)(async () => {

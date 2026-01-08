@@ -1,4 +1,4 @@
-import { ContractCallArgs, MultiCallArgs, TransactionOption, ContractQuery, ContractQueryTrigger, ContractQueryCallback, SendTransaction, SimpleTransactionResult, TronContractCallOptions, EvmContractCallOptions, ChainType, ContractSendArgs } from "./types";
+import { ContractCallArgs, MultiCallArgs, TransactionOption, ContractQuery, ContractQueryTrigger, ContractQueryCallback, SendTransaction, SimpleTransactionResult, TronContractCallOptions, EvmContractCallOptions, ChainType, ContractSendArgs, SendOptions } from "./types";
 import { ContractHelperOptions } from "./types";
 import { TronContractHelper } from "./tron";
 import { EthContractHelper } from "./eth";
@@ -146,8 +146,8 @@ export declare class ContractHelper<Chain extends ChainType> {
      *   }
      * );
      */
-    send(from: string, sendTransaction: SendTransaction<Chain>, args: ContractSendArgs<Chain>): Promise<string>;
-    sendTransaction(tx: Chain extends "tron" ? Transaction<ContractParamter> : TransactionRequest, send: SendTransaction<Chain>): Promise<string>;
+    send(from: string, sendTransaction: SendTransaction<Chain>, args: ContractSendArgs<Chain>, options?: SendOptions): Promise<string>;
+    sendTransaction(tx: Chain extends "tron" ? Transaction<ContractParamter> : TransactionRequest, send: SendTransaction<Chain>, options?: SendOptions): Promise<string>;
     /**
      * Create a unsigned transaction.
      *
@@ -161,7 +161,7 @@ export declare class ContractHelper<Chain extends ChainType> {
      *
      * @returns A Promise resolving to the transaction.
      */
-    createTransaction(from: string, args: ContractSendArgs<Chain>): Promise<Chain extends "tron" ? Transaction<ContractParamter> : TransactionRequest>;
+    createTransaction(from: string, args: ContractSendArgs<Chain>, options?: SendOptions): Promise<Chain extends "tron" ? Transaction<ContractParamter> : TransactionRequest>;
     /**
      * Sends a signed transaction with additional chain-specific options.
      *
@@ -225,6 +225,7 @@ export declare class ContractHelper<Chain extends ChainType> {
     sendWithOptions(from: string, sendTransaction: SendTransaction<Chain>, args: Omit<ContractCallArgs, "options">, options?: {
         trx?: TronContractCallOptions;
         eth?: EvmContractCallOptions;
+        options?: SendOptions;
     }): Promise<string>;
     /**
      * Checks the status or result of a blockchain transaction by its transaction ID.
@@ -315,6 +316,7 @@ export declare class ContractHelper<Chain extends ChainType> {
     sendAndCheckResult(from: string, sendTransaction: SendTransaction<Chain>, args: Omit<ContractCallArgs, "options">, options?: {
         trx?: TronContractCallOptions;
         eth?: EvmContractCallOptions;
+        options?: SendOptions;
     }, callback?: TransactionOption): Promise<SimpleTransactionResult>;
     /**
      * Return the pending call length.
