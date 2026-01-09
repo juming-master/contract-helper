@@ -213,7 +213,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     runner: EvmRunner,
     simulate: boolean,
     formatValue: EvmFormatValue,
-    feeCalculation: SetEvmFee
+    feeCalculation?: SetEvmFee
   ) {
     super(multicallContractAddress);
     if (!runner.provider) {
@@ -497,7 +497,6 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
       ),
       retry(() => provider.getFeeData(), 5, 100),
     ]);
-
     const gasLimit =
       estimatedGas !== undefined ? (estimatedGas * 120n) / 100n : undefined;
     if (block?.baseFeePerGas) {
@@ -658,11 +657,7 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     return receipt;
   }
 
-  private getBlock(
-    blockTag: BlockTag,
-    txId: string,
-    deadline: number | null
-  ) {
+  private getBlock(blockTag: BlockTag, txId: string, deadline: number | null) {
     ensureNotTimedOut(txId, deadline);
     return retry(
       async () => {
