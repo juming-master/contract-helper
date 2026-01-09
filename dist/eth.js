@@ -194,6 +194,9 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         this.formatValueType = formatValue;
         this.feeCalculation = feeCalculation;
     }
+    get provider() {
+        return this.runner.provider;
+    }
     buildAggregateCall(multiCallArgs) {
         return (0, contract_utils_1.buildAggregateCall)(multiCallArgs, function (fragment, values) {
             const iface = new ethers_1.Interface([fragment]);
@@ -383,9 +386,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
             (0, helper_1.retry)(() => provider.getFeeData(), 5, 100),
         ]);
         const gasLimit = estimatedGas !== undefined ? (estimatedGas * 120n) / 100n : undefined;
-        if (block?.baseFeePerGas &&
-            feeData.maxFeePerGas &&
-            feeData.maxPriorityFeePerGas) {
+        if (block?.baseFeePerGas) {
             let maxFeePerGas, maxPriorityFeePerGas;
             try {
                 const gas = await this.getFastGasParamsWithPrediction(10, 2);
@@ -393,7 +394,9 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
                 maxPriorityFeePerGas = gas.maxPriorityFeePerGas;
             }
             catch (e) {
-                maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas * 120n) / 100n;
+                maxPriorityFeePerGas = feeData.maxPriorityFeePerGas
+                    ? (feeData.maxPriorityFeePerGas * 120n) / 100n
+                    : (0, ethers_1.parseUnits)("2", "gwei");
                 maxFeePerGas =
                     (block.baseFeePerGas * 1125n) / 1000n + maxPriorityFeePerGas;
             }
@@ -465,7 +468,7 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
                 error.message === "transaction underpriced") {
                 const gasParams = await this.getGasParams(transaction, true, options);
                 let tx = { ...transaction, ...gasParams };
-                const type = this.calcTransactionType(gasParams);
+                const type = this.calcTransactionType(tx);
                 tx = { ...tx, type };
                 const txId = await sendTransaction(tx, provider, "evm");
                 return txId;
@@ -477,32 +480,58 @@ class EthContractHelper extends contract_helper_base_1.ContractHelperBase {
         const transaction = await this.createTransaction(from, contractOption, options);
         return await this.sendTransaction(transaction, sendTransaction, options);
     }
-    async checkReceipt(txId, confirmations) {
+    async checkReceipt(txId, referencedBlockNumber, deadline) {
+        (0, helper_1.ensureNotTimedOut)(txId, deadline);
         const receipt = await (0, helper_1.retry)(async () => {
-            const receipt = await this.runner.provider.waitForTransaction(txId, confirmations);
-            if (!receipt) {
-                await (0, wait_1.default)(1000);
-                return this.checkReceipt(txId, confirmations);
-            }
-            return receipt;
+            return await this.runner.provider.waitForTransaction(txId, 1);
         }, 10, 1000);
+        (0, helper_1.ensureNotTimedOut)(txId, deadline);
+        if (!receipt ||
+            (referencedBlockNumber > 0 && receipt.blockNumber > referencedBlockNumber)) {
+            if (deadline !== null) {
+                const remaining = deadline - Date.now();
+                if (remaining <= 0) {
+                    (0, helper_1.ensureNotTimedOut)(txId, deadline);
+                }
+                await (0, wait_1.default)(Math.min(1000, remaining));
+            }
+            else {
+                await (0, wait_1.default)(1000);
+            }
+            return this.checkReceipt(txId, referencedBlockNumber, deadline);
+        }
         if (!receipt.status) {
             throw new errors_1.TransactionReceiptError("Transaction execute reverted", {
                 txId: txId,
-                blockNumber: confirmations >= 5 ? BigInt(receipt.blockNumber) : undefined,
+                blockNumber: BigInt(receipt.blockNumber),
             });
         }
         return receipt;
     }
-    async finalCheckTransactionResult(txId) {
-        const receipt = await this.checkReceipt(txId, 5);
+    getBlock(blockTag, txId, deadline) {
+        (0, helper_1.ensureNotTimedOut)(txId, deadline);
+        return (0, helper_1.retry)(async () => {
+            const block = await this.runner.provider.getBlock(blockTag);
+            if (!block) {
+                throw new errors_1.TransactionReceiptError(`Fetch ${blockTag} block failed`, {
+                    txId,
+                });
+            }
+            return block;
+        }, 10, 1000);
+    }
+    async finalCheckTransactionResult(txId, timeoutMs) {
+        const deadline = (0, helper_1.getDeadline)(timeoutMs);
+        const block = await this.getBlock("finalized", txId, deadline);
+        const receipt = await this.checkReceipt(txId, block.number, deadline);
         return {
             blockNumber: BigInt(receipt.blockNumber),
             txId: receipt.hash,
         };
     }
-    async fastCheckTransactionResult(txId) {
-        const receipt = await this.checkReceipt(txId, 0);
+    async fastCheckTransactionResult(txId, timeoutMs) {
+        const deadline = (0, helper_1.getDeadline)(timeoutMs);
+        const receipt = await this.checkReceipt(txId, 0, deadline);
         return { txId: receipt.hash };
     }
 }

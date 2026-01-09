@@ -1,4 +1,4 @@
-import { ContractCallArgs, ContractSendArgs, EvmFormatValue, EvmRunner, EvmTransactionRequest, MultiCallArgs, SendOptions, SendTransaction, SetEvmFee, SimpleTransactionResult } from "./types";
+import { ContractCallArgs, ContractSendArgs, EvmFormatValue, EvmProvider, EvmRunner, EvmTransactionRequest, MultiCallArgs, SendOptions, SendTransaction, SetEvmFee, SimpleTransactionResult } from "./types";
 import { ContractHelperBase } from "./contract-helper-base";
 export declare class EthContractHelper extends ContractHelperBase<"evm"> {
     private runner;
@@ -6,7 +6,8 @@ export declare class EthContractHelper extends ContractHelperBase<"evm"> {
     private formatValueType;
     private feeCalculation?;
     private chainId;
-    constructor(multicallContractAddress: string, runner: EvmRunner, simulate: boolean, formatValue: EvmFormatValue, feeCalculation: SetEvmFee);
+    constructor(multicallContractAddress: string, runner: EvmRunner, simulate: boolean, formatValue: EvmFormatValue, feeCalculation?: SetEvmFee);
+    get provider(): EvmProvider;
     private buildAggregateCall;
     private buildUpAggregateResponse;
     private formatValue;
@@ -48,8 +49,9 @@ export declare class EthContractHelper extends ContractHelperBase<"evm"> {
     sendTransaction(transaction: EvmTransactionRequest, sendTransaction: SendTransaction<"evm">, options?: SendOptions): Promise<string>;
     send(from: string, sendTransaction: SendTransaction<"evm">, contractOption: ContractSendArgs<"evm">, options?: SendOptions): Promise<string>;
     private checkReceipt;
-    finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;
-    fastCheckTransactionResult(txId: string): Promise<{
+    private getBlock;
+    finalCheckTransactionResult(txId: string, timeoutMs?: number): Promise<SimpleTransactionResult>;
+    fastCheckTransactionResult(txId: string, timeoutMs?: number): Promise<{
         txId: string;
     }>;
 }

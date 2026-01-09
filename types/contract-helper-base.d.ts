@@ -13,8 +13,8 @@ export declare abstract class ContractHelperBase<Chain extends ChainType> {
     abstract createTransaction(from: string, args: ContractSendArgs<Chain>, options?: SendOptions): Promise<Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest>;
     abstract sendTransaction(transaction: Chain extends "evm" ? EvmTransactionRequest : TronTransactionRequest, sendTransaction: SendTransaction<Chain>): Promise<string>;
     abstract send(from: string, sendFn: SendTransaction<Chain>, args: ContractSendArgs<Chain>, options?: SendOptions): Promise<string>;
-    abstract fastCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
-    abstract finalCheckTransactionResult(txID: string): Promise<SimpleTransactionResult>;
+    abstract fastCheckTransactionResult(txID: string, timeoutMs?: number): Promise<SimpleTransactionResult>;
+    abstract finalCheckTransactionResult(txID: string, timeoutMs?: number): Promise<SimpleTransactionResult>;
     protected getEstimatedFeeRequired(options?: SendOptions): boolean;
     checkTransactionResult(txID: string, options?: TransactionOption): Promise<SimpleTransactionResult>;
 }

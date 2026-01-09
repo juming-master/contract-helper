@@ -23,12 +23,12 @@ class ContractHelper {
      *   - `provider` (TronWeb | ethers.js Provider): Blockchain provider instance.
      *   - `multicallV2Address` (string): Address of the deployed Multicall V2 contract.
      *   - `multicallLazyQueryTimeout` (optional, number): Maximum wait time in milliseconds before executing the pending call queue. Default is usually 1000ms.
-     *   - `multicallMaxPendingLength` (optional, number): Maximum number of pending calls in the queue before automatic execution.
+     *   - `multicallMaxLazyCallsLength` (optional, number): Maximum number of pending calls in the queue before automatic execution.
      *   - `simulateBeforeSend` (optional, boolean): If true, simulate the transaction using `eth_call` before sending it (only supported on Ethereum).
      *   - `formatValue` (optional, object): Formatting options for returned values:
      *       - `address` ("base58" | "checksum" | "hex"): Format of returned addresses. Default is "base58" for Tron and "checksum" for Ethereum.
      *       - `uint` ("bigint" | "bignumber"): Format for returned uint values. Default is "bignumber".
-     *   - `feeCalculation` (optional, number): calculate the desired fee based on network-provided fee parameters. By default, multiply the base fee by 1.2x.
+     *   - `feeCalculation` (optional, function): Calculate the desired fee based on network-provided fee parameters.
      */
     constructor(options) {
         const chain = options.chain;
@@ -121,7 +121,7 @@ class ContractHelper {
      * Sends a signed transaction to the blockchain network.
      *
      * @param from - The address of the signer who signed the transaction.
-     * @param sendFn - A function that performs the actual transaction sending and signing.
+     * @param sendTransaction - A function that performs the actual transaction sending and signing.
      *                 Its signature varies depending on the chain type:
      *                 - For "tron", it accepts a TronTransactionRequest and a TronProvider(TronWeb).
      *                 - For "evm", it accepts an EvmTransactionRequest and an EvmProvider(ethers Provider).
@@ -132,6 +132,8 @@ class ContractHelper {
      *                 - `args` (any[]): The parameters to pass to the method.
      *                 - `abi` (optional, any[]): The ABI definition of the contract. If `method` is a full signature, ABI may be omitted.
      *                 - `options` (optional): transaction options such as gasLimit, feeLimit, or value.
+     *
+     * @param options - Optional send options (e.g., estimateFee).
      *
      * @returns A Promise resolving to the transaction ID/hash as a string.
      *
@@ -177,21 +179,29 @@ class ContractHelper {
         sendTransaction, args, options);
         return txId;
     }
+    /**
+     * Send a pre-built transaction using the provided sender.
+     *
+     * @param tx - The transaction request built by createTransaction.
+     * @param send - The chain-specific send function.
+     * @param options - Optional send options (e.g., estimateFee).
+     */
     sendTransaction(tx, send, options) {
         return this.helper.sendTransaction(
         // @ts-ignore
         tx, send, options);
     }
     /**
-     * Create a unsigned transaction.
+     * Create an unsigned transaction without sending it.
      *
      * @param from - The address of the signer who will sign the transaction.
      * @param args - The contract send arguments including:
      *                 - `address` (string): The contract address to call.
-     *                 - `method` (string): The method name or full method signature (e.g., "transfer" or "function transfer(address,uint256) returns (bool)").
+     *                 - `method` (string): The method name or full method signature.
      *                 - `args` (any[]): The parameters to pass to the method.
-     *                 - `abi` (optional, any[]): The ABI definition of the contract. If `method` is a full signature, ABI may be omitted.
+     *                 - `abi` (optional, any[]): The ABI definition of the contract.
      *                 - `options` (optional): transaction options such as gasLimit, feeLimit, or value.
+     * @param options - Optional send options (e.g., estimateFee).
      *
      * @returns A Promise resolving to the transaction.
      */

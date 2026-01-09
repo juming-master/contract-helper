@@ -16,4 +16,6 @@ export interface PromiseCallback<T> {
 }
 export declare function runWithCallback<T>(fn: RetryFunction<T>, callback?: PromiseCallback<T>): Promise<T>;
 export declare function runPromiseWithCallback<T>(p: Promise<T>, callback: PromiseCallback<T>): Promise<T>;
+export declare function getDeadline(timeoutMs?: number): number | null;
+export declare function ensureNotTimedOut(txId: string, deadline: number | null, message?: string): void;
 //# sourceMappingURL=helper.d.ts.map

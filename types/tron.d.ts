@@ -2,7 +2,7 @@ import { ContractCallArgs, ContractSendArgs, MultiCallArgs, SendTransaction, Sim
 import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
 import { ContractHelperBase } from "./contract-helper-base";
 export declare class TronContractHelper extends ContractHelperBase<"tron"> {
-    private provider;
+    provider: TronProvider;
     private formatValueType;
     private feeCalculation?;
     constructor(multicallContractAddress: string, provider: TronProvider, formatValue: TronFormatValue, feeCalculation?: SetTronFee);
@@ -27,7 +27,9 @@ export declare class TronContractHelper extends ContractHelperBase<"tron"> {
     createTransaction(from: string, contractOption: ContractSendArgs<"tron">, sendOptions?: SendOptions): Promise<TronTransactionRequest<ContractParamter>>;
     sendTransaction(transaction: TronTransactionRequest<ContractParamter>, sendTransaction: SendTransaction<"tron">, options?: SendOptions): Promise<string>;
     send(from: string, sendTransaction: SendTransaction<"tron">, contractOption: ContractSendArgs<"tron">, options?: SendOptions): Promise<string>;
-    fastCheckTransactionResult(txId: string): any;
-    finalCheckTransactionResult(txId: string): Promise<SimpleTransactionResult>;
+    fastCheckTransactionResult(txId: string, timeoutMs?: number): Promise<any>;
+    finalCheckTransactionResult(txId: string, timeoutMs?: number): Promise<SimpleTransactionResult>;
+    private fastCheckTransactionResultWithDeadline;
+    private finalCheckTransactionResultWithDeadline;
 }
 //# sourceMappingURL=tron.d.ts.map
