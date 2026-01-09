@@ -1,7 +1,7 @@
 # contract-helper
 
 A smart contract interaction helper for Ethereum (via `ethers`) and Tron (via `tronweb`).  
-Supports batched read queries via Multicall, lazy call queuing, transaction sending, and result checking — with built-in debounce and retry mechanisms.
+Supports batched read queries via Multicall, lazy call queuing, transaction sending, and result checking, with built-in debounce and retry mechanisms.
 
 ---
 
@@ -11,10 +11,12 @@ Supports batched read queries via Multicall, lazy call queuing, transaction send
 - 📦 Supports:
   - `call()` – single smart contract read call
   - `multicall()` – batched smart contract reads using Multicall v2
-  - `send()` – signed transaction sending
+  - `send()` – build and send a signed transaction
+  - `sendTransaction()` – send a pre-built transaction
+  - `createTransaction()` – build an unsigned transaction
   - `lazyCall()` – queued batched calls with auto-trigger and debounce
   - `checkTransactionResult()` – transaction receipt/result tracking
-  - `sendAndCheckResult()` - signing transaction, sending it and checking the transaction result.
+  - `sendAndCheckResult()` - sign, send, and check the transaction result
 - ⏱️ Automatic `lazyCall()` batching based on:
   - `multicallMaxLazyCallsLength`
   - `multicallLazyQueryTimeout`
@@ -61,7 +63,7 @@ const tronWeb = new TronWeb({
 });
 
 const helper = new ContractHelper<"tron">({
-  chain: "tron"
+  chain: "tron",
   provider: tronWeb,
   multicallV2Address: "<MULTICALL_CONTRACT_ADDRESS>",
 });
@@ -102,7 +104,7 @@ const result = await helper.call<string>({
 
 ### multicall\<T\>(args: MultiCallArgs): Promise\<T\>
 
-Batch read-only calls. T should be an key-value object.
+Batch read-only calls. T should be a key-value object.
 
 ```typescript
 
@@ -136,7 +138,7 @@ const results = await ethHelper.multicall<{symbol: string,name: string}>([
 console.log(results.symbol,results.name);
 ```
 
-### send(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs): Promise\<string\>
+### send(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs, options?: SendOptions): Promise\<string\>
 
 Send a transaction and return the transaction hash.
 
@@ -209,7 +211,42 @@ const txId = await tronHelper.send(
 
 ```
 
-### checkTransactionResult(txId: string, options?: TransactionOption): Promise<\SimpleTransactionResult\>
+### sendTransaction(tx: EvmTransactionRequest | TronTransactionRequest, send: SendTransaction, options?: SendOptions): Promise\<string\>
+
+Send a pre-built transaction. Useful when you already constructed the tx via `createTransaction`.
+
+```typescript
+const tx = await helper.createTransaction(from, {
+  address: "0xToken",
+  method: "transfer(address,uint256)",
+  args: ["0xRecipient", "1000"],
+});
+
+const txId = await helper.sendTransaction(tx, async (tx, provider, chain) => {
+  if (chain === "evm") {
+    const signed = await wallet.signTransaction(tx);
+    const response = await provider.broadcastTransaction(signed);
+    return response.hash;
+  }
+  const signed = await tronWeb.trx.sign(tx);
+  const response = await provider.trx.sendRawTransaction(signed);
+  return response.transaction.txID;
+});
+```
+
+### createTransaction(from: string, contractCall: ContractCallArgs, options?: SendOptions): Promise\<EvmTransactionRequest | TronTransactionRequest\>
+
+Build a transaction without sending it.
+
+```typescript
+const tx = await helper.createTransaction(signerAddress, {
+  address: "0xToken",
+  method: "transfer(address,uint256)",
+  args: ["0xRecipient", "1000"],
+});
+```
+
+### checkTransactionResult(txId: string, options?: TransactionOption): Promise\<SimpleTransactionResult\>
 
 Check the result of a blockchain transaction by its transaction hash.
 > ⚠️  
@@ -243,7 +280,7 @@ const txId = "0x123abc...";
 const result = await helper.checkTransactionResult(txId, {
   check: CheckTransactionType.Fast,
   success: (info) => {
-    // This is called when fianl check is completed even check is setted CheckTransactionType.Fast
+    // This is called when final check is completed even if check is set to CheckTransactionType.Fast
     console.log("Transaction succeeded:", info);
   },
   error: (err) => {
@@ -256,7 +293,7 @@ console.log("Block Number:", result.blockNumber);
 
 ```
 
-### sendWithOptions(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs, options: {trx?: TronContractCallOptions; eth: EthContractCallOptions;}): Promise\<string\>
+### sendWithOptions(from: string, sendTransaction: SendTransaction, contractCall: ContractCallArgs, options: {trx?: TronContractCallOptions; eth?: EthContractCallOptions; options?: SendOptions;}): Promise\<string\>
 
 Send a transaction with trx options and eth options.
 
@@ -330,7 +367,7 @@ const result = await ethHelper.sendAndCheckResult(
   {
     check: CheckTransactionType.Fast, // default is fast
     success: (info) => {
-      // This is called when fianl check is completed even check is setted CheckTransactionType.Fast
+    // This is called when final check is completed even if check is set to CheckTransactionType.Fast
       console.log("Transaction succeeded:", info);
     },
     error: (err) => {
@@ -364,7 +401,7 @@ contractHelper.addLazyCall({
 
 Adds a contract call to an internal queue, which will be automatically executed via multicall once either:
 
-- the number of queued calls reaches a predefined threshold (multicallMaxPendingLength), or
+- the number of queued calls reaches a predefined threshold (multicallMaxLazyCallsLength), or
 - the maximum waiting time (multicallLazyQueryTimeout) has elapsed since the first call was queued.
   
 The return value is the same as call, but the execution is deferred and batched with other calls in a multicall.
@@ -388,9 +425,9 @@ const result = await Promise.all([
 console.log(results[0]);//symbol
 ```
 
-### executeLazyCalls\<T\>(): Promise\<T\>
+### executeLazyCalls\<T\>(callback?: PromiseCallback\<T\>): Promise\<T\>
 
-Executes all previously added lazy calls.Only used after multi lazyCall.
+Executes all previously added lazy calls. Only used after multiple lazyCall.
 
 Internally, this performs a multicall request at the network level (if supported), and then resolves each lazy call's associated promise with the corresponding decoded result.
 Returns an array of decoded results, in the same order as the lazy calls.
@@ -423,7 +460,7 @@ interface ContractHelperOptions<Chain extends "tron" | "evm"> {
     address?: "base58" | "checksum" | "hex"; // Optional. Format returned addresses. "base58"/"checksum"/"hex" for Tron, "checksum"/"hex" for ETH.
     uint?: "bigint" | "bignumber";           // Optional. Format for returned uint values. Default is "bignumber".
   };
-  feeCalculation?: Chain extends "tron" ? SetTronFee : SetEvmFee; // Set the fee params by network fee params.
+  feeCalculation?: Chain extends "tron" ? SetTronFee : SetEvmFee; // Calculate fee params based on network fee data.
 }
 
 ```

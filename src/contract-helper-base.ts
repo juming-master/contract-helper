@@ -57,11 +57,13 @@ export abstract class ContractHelperBase<Chain extends ChainType> {
   ): Promise<string>;
 
   abstract fastCheckTransactionResult(
-    txID: string
+    txID: string,
+    timeoutMs?: number
   ): Promise<SimpleTransactionResult>;
 
   abstract finalCheckTransactionResult(
-    txID: string
+    txID: string,
+    timeoutMs?: number
   ): Promise<SimpleTransactionResult>;
 
   protected getEstimatedFeeRequired(options?: SendOptions) {

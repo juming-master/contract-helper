@@ -1,5 +1,6 @@
 import wait from "wait";
 export { default as map, mapSkip as mapSkip, Mapper } from "./p-map";
+import { TransactionReceiptError } from "./errors";
 
 /**
  * Deep clone a object
@@ -18,7 +19,8 @@ export function retry<T>(
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     function attempt(retries: number): void {
-      fn()
+      Promise.resolve()
+        .then(fn)
         .then(resolve)
         .catch((err) => {
           if (retries > 0) {
@@ -49,7 +51,15 @@ export function runWithCallback<T>(
 ): Promise<T> {
   const promise = fn();
   if (callback) {
-    promise.then(callback.success).catch(callback.error);
+    promise
+      .then((value) => {
+        try {
+          callback.success?.(value);
+        } catch (err) {
+          callback.error?.(err);
+        }
+      })
+      .catch(callback.error);
   }
   return promise;
 }
@@ -75,4 +85,21 @@ export async function runPromiseWithCallback<T>(
       } catch {}
       throw err;
     });
+}
+
+export function getDeadline(timeoutMs?: number) {
+  if (!timeoutMs || timeoutMs <= 0) {
+    return null;
+  }
+  return Date.now() + timeoutMs;
+}
+
+export function ensureNotTimedOut(
+  txId: string,
+  deadline: number | null,
+  message = "Transaction check timeout"
+) {
+  if (deadline !== null && Date.now() > deadline) {
+    throw new TransactionReceiptError(message, { txId });
+  }
 }
