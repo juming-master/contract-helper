@@ -636,18 +636,28 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     ensureNotTimedOut(txId, deadline);
     const receipt = await retry(
       async () => {
-        const receipt = await this.runner.provider!.waitForTransaction(txId, 1);
-        if (!receipt || receipt.blockNumber > referencedBlockNumber) {
-          ensureNotTimedOut(txId, deadline);
-          await wait(1000);
-          return this.checkReceipt(txId, referencedBlockNumber, deadline);
-        }
-        return receipt;
+        return await this.runner.provider!.waitForTransaction(txId, 1);
       },
       10,
       1000
     );
     ensureNotTimedOut(txId, deadline);
+    if (
+      !receipt ||
+      (referencedBlockNumber > 0 && receipt.blockNumber > referencedBlockNumber)
+    ) {
+      if (deadline !== null) {
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+          ensureNotTimedOut(txId, deadline);
+        }
+        await wait(Math.min(1000, remaining));
+      } else {
+        await wait(1000);
+      }
+      return this.checkReceipt(txId, referencedBlockNumber, deadline);
+    }
+
     if (!receipt.status) {
       throw new TransactionReceiptError("Transaction execute reverted", {
         txId: txId,

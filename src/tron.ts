@@ -27,7 +27,10 @@ import wait from "wait";
 import { ensureNotTimedOut, getDeadline, retry } from "./helper";
 import BigNumber from "bignumber.js";
 import { FunctionFragment } from "ethers";
-import { BroadcastTronTransactionError, TransactionReceiptError } from "./errors";
+import {
+  BroadcastTronTransactionError,
+  TransactionReceiptError,
+} from "./errors";
 
 const ABI = [
   {
@@ -349,7 +352,7 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
         return this.formatValueType?.address === "checksum"
           ? TronWeb.address.toChecksumAddress(value)
           : this.formatValueType?.address === "hex"
-          ? TronWeb.address.toHex(value)
+          ? TronWeb.address.toHex(value).toLowerCase()
           : formatBase58Address(value);
       default:
         return value;
