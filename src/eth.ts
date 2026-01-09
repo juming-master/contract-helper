@@ -225,6 +225,10 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     this.feeCalculation = feeCalculation;
   }
 
+  public get provider() {
+    return this.runner.provider!;
+  }
+
   private buildAggregateCall(multiCallArgs: MultiCallArgs[]) {
     return buildAggregateCall(
       multiCallArgs,

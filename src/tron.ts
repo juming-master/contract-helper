@@ -263,7 +263,7 @@ const ABI = [
 ];
 
 export class TronContractHelper extends ContractHelperBase<"tron"> {
-  private provider: TronProvider;
+  public provider: TronProvider;
   private formatValueType: TronFormatValue;
   private feeCalculation?: SetTronFee;
 
