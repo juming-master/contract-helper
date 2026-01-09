@@ -24,13 +24,10 @@ import {
 import { ContractParamter, SignedTransaction } from "tronweb/lib/esm/types";
 import { ContractHelperBase } from "./contract-helper-base";
 import wait from "wait";
-import { retry } from "./helper";
+import { ensureNotTimedOut, getDeadline, retry } from "./helper";
 import BigNumber from "bignumber.js";
 import { FunctionFragment } from "ethers";
-import {
-  BroadcastTronTransactionError,
-  TransactionReceiptError,
-} from "./errors";
+import { BroadcastTronTransactionError, TransactionReceiptError } from "./errors";
 
 const ABI = [
   {
@@ -486,7 +483,28 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
     return await this.sendTransaction(transaction, sendTransaction, options);
   }
 
-  async fastCheckTransactionResult(txId: string) {
+  async fastCheckTransactionResult(txId: string, timeoutMs?: number) {
+    return this.fastCheckTransactionResultWithDeadline(
+      txId,
+      getDeadline(timeoutMs)
+    );
+  }
+
+  async finalCheckTransactionResult(
+    txId: string,
+    timeoutMs?: number
+  ): Promise<SimpleTransactionResult> {
+    return this.finalCheckTransactionResultWithDeadline(
+      txId,
+      getDeadline(timeoutMs)
+    );
+  }
+
+  private async fastCheckTransactionResultWithDeadline(
+    txId: string,
+    deadline: number | null
+  ) {
+    ensureNotTimedOut(txId, deadline);
     const transaction = await retry(
       async () =>
         (await this.provider.trx.getTransaction(
@@ -495,32 +513,39 @@ export class TronContractHelper extends ContractHelperBase<"tron"> {
       10,
       1000
     );
+    ensureNotTimedOut(txId, deadline);
     if (!transaction.ret?.length) {
       await wait(1000);
-      return this.fastCheckTransactionResult(txId);
+      return this.fastCheckTransactionResultWithDeadline(txId, deadline);
     }
     if (
       !transaction.ret.every(
         (result) => result.contractRet === CONTRACT_SUCCESS
       )
     ) {
-      const txInfo = await this.finalCheckTransactionResult(txId);
+      const txInfo = await this.finalCheckTransactionResultWithDeadline(
+        txId,
+        deadline
+      );
       return { txId: txInfo.txId };
     }
     return { txId: transaction.txID };
   }
 
-  async finalCheckTransactionResult(
-    txId: string
+  private async finalCheckTransactionResultWithDeadline(
+    txId: string,
+    deadline: number | null
   ): Promise<SimpleTransactionResult> {
+    ensureNotTimedOut(txId, deadline);
     const output = await retry(
       async () => await this.provider.trx.getTransactionInfo(txId),
       10,
       1000
     );
+    ensureNotTimedOut(txId, deadline);
     if (!Object.keys(output).length) {
       await wait(3000);
-      return this.finalCheckTransactionResult(txId);
+      return this.finalCheckTransactionResultWithDeadline(txId, deadline);
     }
     const transactionInfo = {
       blockNumber: BigInt(output.blockNumber),

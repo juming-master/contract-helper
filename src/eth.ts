@@ -17,7 +17,7 @@ import {
   buildUpAggregateResponse,
   transformContractCallArgs,
 } from "./contract-utils";
-import { retry } from "./helper";
+import { ensureNotTimedOut, getDeadline, retry } from "./helper";
 import wait from "wait";
 import { ContractHelperBase } from "./contract-helper-base";
 import {
@@ -631,20 +631,24 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
 
   private async checkReceipt(
     txId: string,
-    referencedBlockNumber: number
+    referencedBlockNumber: number,
+    deadline: number | null
   ): Promise<TransactionReceipt> {
+    ensureNotTimedOut(txId, deadline);
     const receipt = await retry(
       async () => {
         const receipt = await this.runner.provider!.waitForTransaction(txId, 1);
         if (!receipt || receipt.blockNumber > referencedBlockNumber) {
+          ensureNotTimedOut(txId, deadline);
           await wait(1000);
-          return this.checkReceipt(txId, referencedBlockNumber);
+          return this.checkReceipt(txId, referencedBlockNumber, deadline);
         }
         return receipt;
       },
       10,
       1000
     );
+    ensureNotTimedOut(txId, deadline);
     if (!receipt.status) {
       throw new TransactionReceiptError("Transaction execute reverted", {
         txId: txId,
@@ -654,7 +658,12 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
     return receipt;
   }
 
-  private getBlock(blockTag: BlockTag, txId: string) {
+  private getBlock(
+    blockTag: BlockTag,
+    txId: string,
+    deadline: number | null
+  ) {
+    ensureNotTimedOut(txId, deadline);
     return retry(
       async () => {
         const block = await this.runner.provider!.getBlock(blockTag);
@@ -671,18 +680,21 @@ export class EthContractHelper extends ContractHelperBase<"evm"> {
   }
 
   public async finalCheckTransactionResult(
-    txId: string
+    txId: string,
+    timeoutMs?: number
   ): Promise<SimpleTransactionResult> {
-    const block = await this.getBlock("finalized", txId);
-    const receipt = await this.checkReceipt(txId, block.number);
+    const deadline = getDeadline(timeoutMs);
+    const block = await this.getBlock("finalized", txId, deadline);
+    const receipt = await this.checkReceipt(txId, block.number, deadline);
     return {
       blockNumber: BigInt(receipt.blockNumber),
       txId: receipt.hash,
     };
   }
 
-  public async fastCheckTransactionResult(txId: string) {
-    const receipt = await this.checkReceipt(txId, 0);
+  public async fastCheckTransactionResult(txId: string, timeoutMs?: number) {
+    const deadline = getDeadline(timeoutMs);
+    const receipt = await this.checkReceipt(txId, 0, deadline);
     return { txId: receipt.hash };
   }
 }

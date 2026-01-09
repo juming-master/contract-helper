@@ -1,5 +1,6 @@
 import wait from "wait";
 export { default as map, mapSkip as mapSkip, Mapper } from "./p-map";
+import { TransactionReceiptError } from "./errors";
 
 /**
  * Deep clone a object
@@ -84,4 +85,21 @@ export async function runPromiseWithCallback<T>(
       } catch {}
       throw err;
     });
+}
+
+export function getDeadline(timeoutMs?: number) {
+  if (!timeoutMs || timeoutMs <= 0) {
+    return null;
+  }
+  return Date.now() + timeoutMs;
+}
+
+export function ensureNotTimedOut(
+  txId: string,
+  deadline: number | null,
+  message = "Transaction check timeout"
+) {
+  if (deadline !== null && Date.now() > deadline) {
+    throw new TransactionReceiptError(message, { txId });
+  }
 }
