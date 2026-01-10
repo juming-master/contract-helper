@@ -34,7 +34,7 @@ import {
 } from "tronweb/lib/esm/types";
 
 export class ContractHelper<Chain extends ChainType> {
-  public helper: Chain extends "tron" ? TronContractHelper : EthContractHelper;
+  private helper: Chain extends "tron" ? TronContractHelper : EthContractHelper;
   private pendingQueries: ContractQuery<any>[] = [];
   private debounceExecuteLazyCalls: DebouncedFunction<() => any>;
   private multicallMaxPendingLength: number;
@@ -82,6 +82,12 @@ export class ContractHelper<Chain extends ChainType> {
     this.debounceExecuteLazyCalls = debounce(() => {
       return this.executeLazyCalls();
     }, multicallLazyQueryTimeout);
+  }
+
+  public get provider() {
+    return this.helper.provider as Chain extends "tron"
+      ? TronProvider
+      : EthProvider;
   }
 
   /**

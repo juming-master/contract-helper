@@ -69,6 +69,27 @@ const helper = new ContractHelper<"tron">({
 });
 ```
 
+## MulticallV2 Addresses
+
+Mainnet
+
+- Ethereum：[0x5BA1e12693Dc8F9c48aAD8770482f4739bEeD696](https://etherscan.io/address/0x5BA1e12693Dc8F9c48aAD8770482f4739bEeD696#code)
+- Tron: [TFuumskYzYBLZ7EDNpADFTSi1cgcgd7Wwa](https://tronscan.org/#/contract/TFuumskYzYBLZ7EDNpADFTSi1cgcgd7Wwa/code)
+- BNB Chain: [0xfF6FD90A470Aaa0c1B8A54681746b07AcdFedc9B](https://bscscan.com/address/0xff6fd90a470aaa0c1b8a54681746b07acdfedc9b#code)
+- Polygon: [0xed386Fe855C1EFf2f843B910923Dd8846E45C5A4](https://polygonscan.com/address/0xed386fe855c1eff2f843b910923dd8846e45c5a4#code)
+- Avalance-C Chain: [0xd7Fc8aD069f95B6e2835f4DEff03eF84241cF0E1](https://snowtrace.io/address/0xd7Fc8aD069f95B6e2835f4DEff03eF84241cF0E1/contract/43114/code)
+- Base: [0xeDF6D2a16e8081F777eB623EeB4411466556aF3d](https://basescan.org/address/0xeDF6D2a16e8081F777eB623EeB4411466556aF3d#code)
+- Arbitrum: [0x80C7DD17B01855a6D2347444a0FCC36136a314de](https://arbiscan.io/address/0x80c7dd17b01855a6d2347444a0fcc36136a314de#code)
+- Optimism: [0xD9bfE9979e9CA4b2fe84bA5d4Cf963bBcB376974 (Not Verified)](https://optimistic.etherscan.io/address/0xd9bfe9979e9ca4b2fe84ba5d4cf963bbcb376974)
+- ZKSync: [0xb1F9b5FCD56122CdfD7086e017ec63E50dC075e7](https://explorer.zksync.io/address/0xb1F9b5FCD56122CdfD7086e017ec63E50dC075e7#contract)
+
+Testnet
+
+- Sepolia: [0x6De9b637638b19933278a8C69684912Eed2AF090](https://sepolia.etherscan.io/address/0x6de9b637638b19933278a8c69684912eed2af090#code)
+- Nile: [TJBT9PNPgwP5SnNnj1F2SDSib73eWPpYc9](https://nile.tronscan.org/#/contract/TJBT9PNPgwP5SnNnj1F2SDSib73eWPpYc9/code)
+- BNB Testnet: [0x3Dc484495A7CD56D338aBaED366FaE2f32E269F6](https://testnet.bscscan.com/address/0x3Dc484495A7CD56D338aBaED366FaE2f32E269F6#code)
+
+
 ## 📚 API Reference
 
 ### call\<T\>(args: ContractCallArgs): Promise\<T\>
