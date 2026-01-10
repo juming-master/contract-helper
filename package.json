@@ -1,6 +1,6 @@
 {
   "name": "contract-helper",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "types",
